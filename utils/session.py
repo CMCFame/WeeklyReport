@@ -167,32 +167,65 @@ def collect_form_data():
     return data
 
 def load_report_data(report_data):
-    """Load report data into session state."""
-    st.session_state.name = report_data.get('name', '')
-    st.session_state.reporting_week = report_data.get('reporting_week', '')
+    """Load report data into session state with improved error handling."""
+    if not report_data:
+        st.error("No report data to load")
+        return
     
-    # Load activities
-    st.session_state.current_activities = report_data.get('current_activities', [])
-    st.session_state.upcoming_activities = report_data.get('upcoming_activities', [])
-    
-    # Load lists
-    st.session_state.accomplishments = report_data.get('accomplishments', [''])
-    if not st.session_state.accomplishments:
-        st.session_state.accomplishments = ['']
+    try:
+        # Load basic user information with safe defaults
+        st.session_state.name = report_data.get('name', '')
+        st.session_state.reporting_week = report_data.get('reporting_week', '')
         
-    st.session_state.followups = report_data.get('followups', [''])
-    if not st.session_state.followups:
-        st.session_state.followups = ['']
+        # Safely load activities lists
+        st.session_state.current_activities = report_data.get('current_activities', [])
+        if not isinstance(st.session_state.current_activities, list):
+            st.session_state.current_activities = []
+            
+        st.session_state.upcoming_activities = report_data.get('upcoming_activities', [])
+        if not isinstance(st.session_state.upcoming_activities, list):
+            st.session_state.upcoming_activities = []
         
-    st.session_state.nextsteps = report_data.get('nextsteps', [''])
-    if not st.session_state.nextsteps:
-        st.session_state.nextsteps = ['']
+        # Safely load list items, ensuring they're never empty
+        accomplishments = report_data.get('accomplishments', [''])
+        st.session_state.accomplishments = accomplishments if accomplishments else ['']
+        
+        followups = report_data.get('followups', [''])
+        st.session_state.followups = followups if followups else ['']
+        
+        nextsteps = report_data.get('nextsteps', [''])
+        st.session_state.nextsteps = nextsteps if nextsteps else ['']
+        
+        # Load optional sections
+        for section in OPTIONAL_SECTIONS:
+            content_key = section['content_key']
+            content = report_data.get(content_key, '')
+            st.session_state[content_key] = content
+            # Toggle section visibility based on content
+            st.session_state[section['key']] = bool(content)
+        
+        # Set report ID
+        st.session_state.report_id = report_data.get('id')
+        
+    except Exception as e:
+        st.error(f"Error loading report data: {str(e)}")
+        import traceback
+        st.error(f"Traceback: {traceback.format_exc()}")
+
+def debug_report_data(report_data, prefix=""):
+    """Debug function to print report data structure."""
+    debug_info = []
+    if not report_data:
+        return ["Report data is None or empty"]
     
-    # Load optional sections
-    for section in OPTIONAL_SECTIONS:
-        content = report_data.get(section['content_key'], '')
-        st.session_state[section['content_key']] = content
-        # Toggle section if it has content
-        st.session_state[section['key']] = bool(content)
+    for key, value in report_data.items():
+        if isinstance(value, dict):
+            debug_info.extend(debug_report_data(value, prefix + key + "."))
+        elif isinstance(value, list):
+            debug_info.append(f"{prefix}{key}: {type(value)} = list with {len(value)} items")
+            if value and len(value) > 0:
+                debug_info.append(f"{prefix}{key}[0]: {type(value[0])} = {value[0]}")
+        else:
+            debug_info.append(f"{prefix}{key}: {type(value)} = {value}")
     
-    st.session_state.report_id = report_data.get('id')
+    return debug_info
