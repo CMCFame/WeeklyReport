@@ -5,92 +5,60 @@ import streamlit as st
 from utils import file_ops, session
 
 def render_user_info():
-    """Render the user information section.
-    
-    This includes:
-    - Name input
-    - Reporting week input
-    - Load previous report dropdown
-    """
+    """Render the user information section."""
     st.header('Your Information')
     col1, col2 = st.columns(2)
-    
+
     with col1:
-        st.text_input('Name', key='name', 
-                     help="Enter your full name")
-    
+        st.text_input(
+            'Name',
+            key='name',
+            help='Enter your full name'
+        )
+
     with col2:
-        st.text_input('Reporting Week (e.g., W17 2025)', key='reporting_week',
-                     help="Enter the reporting week in any format (e.g., 'Week 17 2025', 'W17', 'Apr 22-26')")
-    
+        st.text_input(
+            'Reporting Week (e.g., W17 2025)',
+            key='reporting_week',
+            help="Enter the reporting week in any format (e.g., 'Week 17 2025', 'W17', 'Apr 22-26')"
+        )
+
     # Previous Reports Dropdown
     render_previous_reports_dropdown()
 
+
 def render_previous_reports_dropdown():
-    """Render dropdown to load previous reports."""
+    """Render dropdown to load previous reports immediately on select."""
     try:
         reports = file_ops.get_all_reports()
-        
-        if reports:
-            # Create a dictionary mapping display names to report indices
-            report_options = {f"{r.get('name', 'Anonymous')} - {r.get('reporting_week', 'Unknown')} ({r.get('timestamp', '')[:10]})": i 
-                            for i, r in enumerate(reports)}
-            # Add empty option at the top
-            report_options[""] = -1
-            
-            selected_report = st.selectbox(
-                'Load Previous Report', 
-                options=list(report_options.keys()), 
-                index=len(report_options)-1,
-                help="Select a previous report to load as a starting point"
-            )
-            
-            if selected_report and report_options[selected_report] >= 0:
-                col1, col2 = st.columns([1, 1])
-                
-                with col1:
-                    if st.button('Load Selected Report', use_container_width=True):
-                        try:
-                            selected_index = report_options[selected_report]
-                            # Create a deep copy to avoid any reference issues
-                            report_data = reports[selected_index].copy()
-                            session.load_report_data(report_data)
-                            st.success('Report loaded successfully!')
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error loading report: {str(e)}")
-                            # Show more detailed debug info
-                            with st.expander("Debug Information"):
-                                selected_index = report_options[selected_report]
-                                debug_info = session.debug_report_data(reports[selected_index])
-                                for line in debug_info:
-                                    st.text(line)
-                
-                with col2:
-                    if st.button('Use as Template', use_container_width=True, 
-                                help="Load the report but create a new copy when saving"):
-                        try:
-                            selected_index = report_options[selected_report]
-                            # Create a deep copy of the report data
-                            report_data = {}
-                            for key, value in reports[selected_index].items():
-                                if isinstance(value, list):
-                                    report_data[key] = value.copy() if value else []
-                                else:
-                                    report_data[key] = value
-                                    
-                            # Clear the ID to ensure it's saved as a new report
-                            report_data.pop('id', None)
-                            session.load_report_data(report_data)
-                            st.success('Report loaded as template!')
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Error loading report as template: {str(e)}")
-                            # Show more detailed debug info
-                            with st.expander("Debug Information"):
-                                selected_index = report_options[selected_report]
-                                debug_info = session.debug_report_data(reports[selected_index])
-                                for line in debug_info:
-                                    st.text(line)
+        if not reports:
+            return
+
+        # Build the list of options, with an empty placeholder first
+        labels = [
+            "",
+            *[
+                f"{r.get('name','Anonymous')} - "
+                f"{r.get('reporting_week','Unknown')} "
+                f"({r.get('timestamp','')[:10]})"
+                for r in reports
+            ]
+        ]
+
+        selected = st.selectbox(
+            'Load Previous Report',
+            options=labels,
+            key='selected_report',
+            help='Select a past report to load into the form'
+        )
+
+        if selected:
+            # Compute index in reports list (subtract the initial empty entry)
+            idx = labels.index(selected) - 1
+            report_data = reports[idx].copy()
+            session.load_report_data(report_data)
+            st.success('Report loaded successfully!')
+            st.experimental_rerun()
+
     except Exception as e:
-        st.error(f"Error loading reports list: {str(e)}")
+        st.error(f"Error loading reports: {e}")
