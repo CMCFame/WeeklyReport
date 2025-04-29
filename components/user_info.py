@@ -4,42 +4,42 @@
 import streamlit as st
 from utils import file_ops, session
 
-def _load_cached_report():
-    """Callback: load the report selected in `selected_report_idx`."""
-    # selected_report_idx is an integer: 0 means “none”
+def _on_report_select():
+    """
+    Callback triggered by the selectbox.
+    Loads the selected report into session_state, then reruns,
+    so subsequent widgets pick up the new values.
+    """
     idx = st.session_state.selected_report_idx - 1
     if idx >= 0:
-        # Retrieve the cached list
         reports = st.session_state._cached_reports
-        # Copy to avoid mutating the original
         report_data = reports[idx].copy()
         session.load_report_data(report_data)
-        st.success('Report loaded successfully!')
-        # Now restart so text_input widgets pick up the new state
         st.rerun()
+
 
 def render_user_info():
     """Render the user information section."""
-    st.header('Your Information')
-    col1, col2 = st.columns(2)
+    st.header("Your Information")
 
-    with col1:
-        # The text_input shows whatever is already in session_state.name
-        st.text_input(
-            'Name',
-            key='name',
-            help='Enter your full name'
-        )
-
-    with col2:
-        # The text_input shows whatever is already in session_state.reporting_week
-        st.text_input(
-            'Reporting Week (e.g., W17 2025)',
-            key='reporting_week',
-            help="Enter the reporting week (e.g., 'W17 2025', 'Apr 22-26')"
-        )
-
+    # 1) Load dropdown first, so loading happens before the text inputs below
     render_previous_reports_dropdown()
+
+    # 2) Now render Name / Reporting Week inputs, 
+    #    which will pick up whatever is in st.session_state
+    col1, col2 = st.columns(2)
+    with col1:
+        st.text_input(
+            "Name",
+            key="name",
+            help="Enter your full name"
+        )
+    with col2:
+        st.text_input(
+            "Reporting Week (e.g., W17 2025)",
+            key="reporting_week",
+            help="Enter the reporting week in any format (e.g., 'W17 2025', 'Apr 22-26')"
+        )
 
 
 def render_previous_reports_dropdown():
@@ -49,25 +49,25 @@ def render_previous_reports_dropdown():
         if not reports:
             return
 
-        # Cache the list so the callback can access it
+        # Cache for callback access
         st.session_state._cached_reports = reports
 
-        # Build display labels; index 0 is an empty choice
+        # Build labels, with an empty placeholder first
         labels = [""] + [
-            f"{r.get('name','Anonymous')} - "
+            f"{r.get('name','Anonymous')} – "
             f"{r.get('reporting_week','Unknown')} "
             f"({r.get('timestamp','')[:10]})"
             for r in reports
         ]
 
-        # Create a selectbox over the range of indices
+        # Selectbox over integer indices
         st.selectbox(
-            'Load Previous Report',
+            "Load Previous Report",
             options=list(range(len(labels))),
             format_func=lambda i: labels[i],
-            key='selected_report_idx',
-            help='Select a past report to load into the form',
-            on_change=_load_cached_report
+            key="selected_report_idx",
+            help="Choose a past report to preload the form",
+            on_change=_on_report_select
         )
 
     except Exception as e:
