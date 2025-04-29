@@ -19,27 +19,36 @@ def _on_report_select():
 
 
 def render_user_info():
-    """Render the user information section."""
+    """Render the user information section with date selector for reporting week."""
     st.header("Your Information")
 
-    # 1) Load dropdown first, so loading happens before the text inputs below
+    # 1) First, allow loading a past report
     render_previous_reports_dropdown()
 
-    # 2) Now render Name / Reporting Week inputs, 
-    #    which will pick up whatever is in st.session_state
+    # 2) Then render Name and Reporting Week fields
     col1, col2 = st.columns(2)
+
     with col1:
         st.text_input(
             "Name",
             key="name",
             help="Enter your full name"
         )
+
     with col2:
-        st.text_input(
-            "Reporting Week (e.g., W17 2025)",
-            key="reporting_week",
-            help="Enter the reporting week in any format (e.g., 'W17 2025', 'Apr 22-26')"
+        # Use a date picker to select any date within the reporting week
+        week_date = st.date_input(
+            "Reporting Week (select any date within that week)",
+            key="reporting_week_date",
+            help="Pick a date; the app will infer the ISO week number"
         )
+        # Derive ISO week number and year
+        year, week_num, _ = week_date.isocalendar()
+        week_str = f"W{week_num} {year}"
+        # Store as the reporting_week used elsewhere
+        st.session_state.reporting_week = week_str
+        # Show the formatted week to the user
+        st.caption(f"Reporting Week: {week_str}")
 
 
 def render_previous_reports_dropdown():
