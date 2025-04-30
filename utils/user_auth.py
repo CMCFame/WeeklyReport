@@ -5,6 +5,7 @@ import json
 import os
 import hashlib
 import uuid
+import pandas as pd
 from datetime import datetime, timedelta
 import streamlit as st
 from pathlib import Path

@@ -2,9 +2,10 @@
 """Authentication components for the Weekly Report app."""
 
 import streamlit as st
+import pandas as pd
 from utils.user_auth import (
     login_user, logout_user, create_user, 
-    update_user, ROLES, get_user
+    update_user, ROLES, get_user, get_all_users, delete_user
 )
 
 def render_login_page():
@@ -190,9 +191,57 @@ def render_admin_user_management():
                     st.error("Username already exists. Please choose a different one.")
     
     # List and manage existing users
-    # This would be expanded in a real application to include editing and deleting users
+    from utils.user_auth import get_all_users, delete_user, ROLES
+    
     st.subheader("Existing Users")
-    st.write("User management features would be expanded here.")
+    
+    # Get all users
+    users = get_all_users()
+    
+    if not users:
+        st.info("No users found.")
+        return
+    
+    # Display users in a table
+    user_data = []
+    for user in users:
+        user_data.append({
+            "Username": user.get("username", ""),
+            "Full Name": user.get("full_name", ""),
+            "Email": user.get("email", ""),
+            "Role": ROLES.get(user.get("role", ""), "Unknown"),
+            "Last Login": user.get("last_login", "Never")[:19].replace("T", " ") if user.get("last_login") else "Never",
+            "Actions": user.get("username", "")  # We'll use this to identify the user for actions
+        })
+    
+    # Create a dataframe for display
+    import pandas as pd
+    if user_data:
+        df = pd.DataFrame(user_data)
+        
+        # Display the table without the Actions column
+        st.dataframe(df[["Username", "Full Name", "Email", "Role", "Last Login"]], use_container_width=True)
+        
+        # Add action buttons for each user
+        st.subheader("User Actions")
+        
+        for i, user in enumerate(users):
+            username = user.get("username", "")
+            if username != "admin":  # Protect the admin user
+                cols = st.columns([3, 1])
+                with cols[0]:
+                    st.write(f"**{user.get('full_name', '')}** ({username})")
+                with cols[1]:
+                    if st.button("Delete User", key=f"delete_user_{i}"):
+                        # Confirm deletion
+                        confirm = st.checkbox(f"Confirm deletion of {username}", key=f"confirm_delete_{i}")
+                        if confirm:
+                            if delete_user(username):
+                                st.success(f"User {username} deleted successfully.")
+                                st.rerun()
+                            else:
+                                st.error(f"Failed to delete user {username}.")
+                st.divider()
 
 def check_authentication():
     """Check if user is authenticated and show login page if not.
