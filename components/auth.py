@@ -191,8 +191,6 @@ def render_admin_user_management():
                     st.error("Username already exists. Please choose a different one.")
     
     # List and manage existing users
-    from utils.user_auth import get_all_users, delete_user, ROLES
-    
     st.subheader("Existing Users")
     
     # Get all users
@@ -215,7 +213,6 @@ def render_admin_user_management():
         })
     
     # Create a dataframe for display
-    import pandas as pd
     if user_data:
         df = pd.DataFrame(user_data)
         
@@ -232,15 +229,21 @@ def render_admin_user_management():
                 with cols[0]:
                     st.write(f"**{user.get('full_name', '')}** ({username})")
                 with cols[1]:
-                    if st.button("Delete User", key=f"delete_user_{i}"):
-                        # Confirm deletion
-                        confirm = st.checkbox(f"Confirm deletion of {username}", key=f"confirm_delete_{i}")
-                        if confirm:
-                            if delete_user(username):
-                                st.success(f"User {username} deleted successfully.")
-                                st.rerun()
-                            else:
-                                st.error(f"Failed to delete user {username}.")
+                    delete_key = f"delete_user_{i}"
+                    delete_pressed = st.button("Delete User", key=delete_key)
+                    
+                    if delete_pressed:
+                        # Display confirmation form
+                        with st.form(key=f"confirm_delete_form_{i}"):
+                            st.warning(f"Are you sure you want to delete user '{username}'?")
+                            confirm = st.form_submit_button("Confirm Delete")
+                            
+                            if confirm:
+                                if delete_user(username):
+                                    st.success(f"User {username} deleted successfully.")
+                                    st.rerun()
+                                else:
+                                    st.error(f"Failed to delete user {username}.")
                 st.divider()
 
 def check_authentication():
