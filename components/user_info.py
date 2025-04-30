@@ -22,13 +22,22 @@ def render_user_info():
     """Render the user information section with date selector for reporting week."""
     st.header("Your Information")
 
-    # 1) First, allow loading a past report
+    # 1) First, allow loading a past report (filtered by the authenticated user)
     render_previous_reports_dropdown()
 
     # 2) Then render Name and Reporting Week fields
     col1, col2 = st.columns(2)
 
     with col1:
+        # If user is authenticated, use their name but allow edits
+        default_name = ""
+        if st.session_state.get("user_info"):
+            default_name = st.session_state.user_info.get("full_name", "")
+            
+        # Only set if name isn't already defined (to avoid overwriting)
+        if not st.session_state.get("name") and default_name:
+            st.session_state.name = default_name
+        
         st.text_input(
             "Name",
             key="name",
@@ -54,7 +63,8 @@ def render_user_info():
 def render_previous_reports_dropdown():
     """Render a dropdown of past reports and load on change."""
     try:
-        reports = file_ops.get_all_reports()
+        # Get reports for current user only
+        reports = file_ops.get_all_reports(filter_by_user=True)
         if not reports:
             return
 

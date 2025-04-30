@@ -17,6 +17,7 @@ from utils.session import (
     collect_form_data
 )
 from utils.file_ops import save_report
+from utils.user_auth import create_admin_if_needed
 
 # Import component modules
 from components.user_info import render_user_info
@@ -29,6 +30,11 @@ from components.optional_sections import (
     render_all_optional_sections
 )
 from components.past_reports import render_past_reports
+from components.auth import (
+    check_authentication, 
+    render_user_profile,
+    render_admin_user_management
+)
 
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
@@ -47,7 +53,45 @@ def main():
     """Main application function."""
     # Initialize session state
     init_session_state()
+    
+    # Create admin user if no users exist
+    create_admin_if_needed()
+    
+    # Check authentication (shows login page if not authenticated)
+    if not check_authentication():
+        return
+    
+    # Display user info in sidebar
+    if st.session_state.get("user_info"):
+        user_role = st.session_state.user_info.get("role", "team_member")
+        user_name = st.session_state.user_info.get("full_name", "User")
+        
+        st.sidebar.write(f"**Logged in as:** {user_name}")
+        st.sidebar.write(f"**Role:** {user_role.capitalize()}")
+        
+        # Navigation in sidebar
+        st.sidebar.title("Navigation")
+        page = st.sidebar.radio(
+            "Go to",
+            ["Weekly Report", "Past Reports", "User Profile"] + 
+            (["User Management"] if user_role == "admin" else [])
+        )
+        
+        # Render selected page
+        if page == "Weekly Report":
+            render_weekly_report_page()
+        elif page == "Past Reports":
+            st.title("Past Reports")
+            render_past_reports()
+        elif page == "User Profile":
+            render_user_profile()
+        elif page == "User Management" and user_role == "admin":
+            render_admin_user_management()
+    else:
+        st.error("Session error. Please log out and log in again.")
 
+def render_weekly_report_page():
+    """Render the main weekly report form."""
     # Header
     st.title('📋 Weekly Activity Report')
     st.write('Quickly document your week\'s work in under 5 minutes')
@@ -55,18 +99,11 @@ def main():
     # Progress bar
     completion_percentage = calculate_completion_percentage()
     st.progress(completion_percentage / 100)
+    
+    # Pre-fill name from user profile if empty
+    if not st.session_state.get("name") and st.session_state.get("user_info"):
+        st.session_state.name = st.session_state.user_info.get("full_name", "")
 
-    # Tabs for main form vs past reports
-    tab1, tab2 = st.tabs(["Report Form", "Past Reports"])
-
-    with tab1:
-        render_report_form()
-
-    with tab2:
-        render_past_reports()
-
-def render_report_form():
-    """Render the main report form."""
     # User Information Section
     render_user_info()
 
