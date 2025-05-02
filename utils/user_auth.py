@@ -6,6 +6,8 @@ import os
 import hashlib
 import uuid
 import pandas as pd
+import random
+import string
 from datetime import datetime, timedelta
 import streamlit as st
 from pathlib import Path
@@ -108,8 +110,11 @@ def authenticate_user(username, password):
         st.error(f"Authentication error: {str(e)}")
         return None
 
-def get_all_users():
+def get_all_users(include_sensitive=False):
     """Get a list of all users.
+    
+    Args:
+        include_sensitive (bool): Whether to include sensitive information like password hash
     
     Returns:
         list: List of user data dictionaries
@@ -121,8 +126,8 @@ def get_all_users():
         for file_path in Path("data/users").glob("*.json"):
             with open(file_path, 'r') as f:
                 user_data = json.load(f)
-                # Remove sensitive information
-                if "password_hash" in user_data:
+                # Remove sensitive information if not requested
+                if not include_sensitive and "password_hash" in user_data:
                     user_data.pop("password_hash")
                 users.append(user_data)
         
@@ -209,6 +214,138 @@ def delete_user(username):
         st.error(f"Error deleting user: {str(e)}")
         return False
 
+def generate_reset_code(username_or_email):
+    """Generate a password reset code for a user.
+    
+    Args:
+        username_or_email (str): Username or email of the user
+        
+    Returns:
+        tuple: (success, message, code) - Success status, message, and reset code if successful
+    """
+    # Find the user by username or email
+    user_data = None
+    username = None
+    
+    # Check for exact username match
+    if get_user(username_or_email):
+        user_data = get_user(username_or_email)
+        username = username_or_email
+    else:
+        # Search by email
+        all_users = get_all_users(include_sensitive=True)
+        for user in all_users:
+            if user.get("email") == username_or_email:
+                user_data = user
+                username = user.get("username")
+                break
+    
+    if not user_data or not username:
+        return False, "No user found with that username or email", None
+    
+    try:
+        # Generate a 6-digit code
+        reset_code = ''.join(random.choices(string.digits, k=6))
+        
+        # Add reset code and expiration to user data
+        expiration = (datetime.now() + timedelta(minutes=30)).isoformat()
+        
+        # Read the current file to preserve all data
+        user_file = f"data/users/{username}.json"
+        with open(user_file, 'r') as f:
+            current_user_data = json.load(f)
+        
+        # Add reset info
+        current_user_data["reset_code"] = reset_code
+        current_user_data["reset_expiration"] = expiration
+        
+        # Save user data
+        with open(user_file, 'w') as f:
+            json.dump(current_user_data, f, indent=2)
+        
+        # Return the code - in a real app, you would email this instead of returning it
+        return True, f"Reset code generated for {username}", reset_code
+        
+    except Exception as e:
+        st.error(f"Error generating reset code: {str(e)}")
+        return False, "Error generating reset code", None
+
+def verify_reset_code(username, code):
+    """Verify a password reset code.
+    
+    Args:
+        username (str): Username of the user
+        code (str): Reset code to verify
+        
+    Returns:
+        bool: True if code is valid, False otherwise
+    """
+    try:
+        user_data = get_user(username)
+        
+        if not user_data:
+            return False
+        
+        stored_code = user_data.get("reset_code")
+        expiration_str = user_data.get("reset_expiration")
+        
+        # Check if code exists and matches
+        if not stored_code or stored_code != code:
+            return False
+        
+        # Check if code has expired
+        if not expiration_str:
+            return False
+        
+        expiration = datetime.fromisoformat(expiration_str)
+        if datetime.now() > expiration:
+            return False
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error verifying reset code: {str(e)}")
+        return False
+
+def reset_password(username, new_password, code):
+    """Reset a user's password with a valid reset code.
+    
+    Args:
+        username (str): Username of the user
+        new_password (str): New password
+        code (str): Reset code to verify
+        
+    Returns:
+        bool: True if password was reset, False otherwise
+    """
+    # Verify the reset code
+    if not verify_reset_code(username, code):
+        return False
+    
+    try:
+        user_file = f"data/users/{username}.json"
+        
+        # Read current user data
+        with open(user_file, 'r') as f:
+            user_data = json.load(f)
+        
+        # Update password
+        user_data["password_hash"] = hash_password(new_password)
+        
+        # Clear reset code and expiration
+        user_data.pop("reset_code", None)
+        user_data.pop("reset_expiration", None)
+        
+        # Save updated user data
+        with open(user_file, 'w') as f:
+            json.dump(user_data, f, indent=2)
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error resetting password: {str(e)}")
+        return False
+
 def init_session_auth():
     """Initialize authentication-related session state variables."""
     if "authenticated" not in st.session_state:
@@ -217,6 +354,16 @@ def init_session_auth():
         st.session_state.user_info = None
     if "login_error" not in st.session_state:
         st.session_state.login_error = None
+    if "show_register" not in st.session_state:
+        st.session_state.show_register = False
+    if "show_forgot_password" not in st.session_state:
+        st.session_state.show_forgot_password = False
+    if "show_reset_password" not in st.session_state:
+        st.session_state.show_reset_password = False
+    if "reset_username" not in st.session_state:
+        st.session_state.reset_username = None
+    if "reset_code" not in st.session_state:
+        st.session_state.reset_code = None
 
 def login_user(username, password):
     """Process login attempt and update session state."""
