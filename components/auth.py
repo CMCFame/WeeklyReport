@@ -4,8 +4,9 @@
 import streamlit as st
 import pandas as pd
 from utils.user_auth import (
-    login_user, logout_user, create_user, 
-    update_user, ROLES, get_user, get_all_users, delete_user
+    login_user, logout_user, create_user, generate_reset_code,
+    reset_password, verify_reset_code, update_user, ROLES, 
+    get_user, get_all_users, delete_user
 )
 
 def render_login_page():
@@ -27,13 +28,21 @@ def render_login_page():
     if st.session_state.get("login_error"):
         st.error(st.session_state.login_error)
     
-    # Link to registration
+    # Links to registration and password reset
     st.write("---")
-    st.write("Don't have an account?")
+    col1, col2 = st.columns(2)
     
-    if st.button("Register New Account"):
-        st.session_state.show_register = True
-        st.rerun()
+    with col1:
+        st.write("Don't have an account?")
+        if st.button("Register New Account"):
+            st.session_state.show_register = True
+            st.rerun()
+    
+    with col2:
+        st.write("Forgot your password?")
+        if st.button("Reset Password"):
+            st.session_state.show_forgot_password = True
+            st.rerun()
 
 def render_register_page():
     """Render the registration page."""
@@ -148,6 +157,102 @@ def render_logout_button():
             logout_user()
             st.rerun()
 
+def render_forgot_password_page():
+    """Render the forgot password page."""
+    st.title("📋 Weekly Activity Report")
+    st.subheader("Reset Password")
+    st.write("Enter your username or email address to receive a password reset code.")
+    
+    with st.form("forgot_password_form"):
+        username_or_email = st.text_input("Username or Email")
+        submitted = st.form_submit_button("Request Reset Code")
+        
+        if submitted:
+            if not username_or_email:
+                st.error("Please enter your username or email.")
+            else:
+                # Generate reset code
+                success, message, code = generate_reset_code(username_or_email)
+                
+                if success:
+                    # In a real app, the code would be emailed
+                    # Here we just display it and store it in session state
+                    st.success(f"Reset code generated successfully. In a real application, this would be emailed to you.")
+                    st.info(f"For demo purposes, here's your code: **{code}**")
+                    
+                    # Store username for the reset page
+                    if '@' in username_or_email:
+                        # If email was provided, get the associated username
+                        all_users = get_all_users(include_sensitive=True)
+                        for user in all_users:
+                            if user.get("email") == username_or_email:
+                                st.session_state.reset_username = user.get("username")
+                                break
+                    else:
+                        st.session_state.reset_username = username_or_email
+                    
+                    # Show reset password page next
+                    st.session_state.show_forgot_password = False
+                    st.session_state.show_reset_password = True
+                    st.rerun()
+                else:
+                    st.error(message)
+    
+    # Back to login
+    if st.button("Back to Login"):
+        st.session_state.show_forgot_password = False
+        st.rerun()
+
+def render_reset_password_page():
+    """Render the reset password page."""
+    st.title("📋 Weekly Activity Report")
+    st.subheader("Enter Reset Code")
+    
+    if not st.session_state.get("reset_username"):
+        st.error("No reset request found. Please start over.")
+        if st.button("Back to Forgot Password"):
+            st.session_state.show_reset_password = False
+            st.session_state.show_forgot_password = True
+            st.rerun()
+        return
+    
+    with st.form("reset_password_form"):
+        st.write(f"Resetting password for: **{st.session_state.reset_username}**")
+        
+        reset_code = st.text_input("Reset Code", help="Enter the 6-digit code you received")
+        new_password = st.text_input("New Password", type="password")
+        confirm_password = st.text_input("Confirm New Password", type="password")
+        
+        submitted = st.form_submit_button("Reset Password")
+        
+        if submitted:
+            if not reset_code or not new_password or not confirm_password:
+                st.error("All fields are required.")
+            elif new_password != confirm_password:
+                st.error("Passwords do not match.")
+            else:
+                # Reset the password
+                success = reset_password(st.session_state.reset_username, new_password, reset_code)
+                
+                if success:
+                    st.success("Password reset successfully! You can now log in with your new password.")
+                    
+                    # Clear reset state and return to login
+                    st.session_state.reset_username = None
+                    st.session_state.show_reset_password = False
+                    
+                    # Show a button to go back to login
+                    if st.button("Go to Login"):
+                        st.rerun()
+                else:
+                    st.error("Invalid or expired reset code. Please try again or request a new code.")
+    
+    # Back to forgot password
+    if st.button("Back to Forgot Password"):
+        st.session_state.show_reset_password = False
+        st.session_state.show_forgot_password = True
+        st.rerun()
+
 def render_admin_user_management():
     """Render the admin user management page."""
     if not st.session_state.get("authenticated") or not st.session_state.get("user_info"):
@@ -261,6 +366,23 @@ def check_authentication():
         st.session_state.login_error = None
     if "show_register" not in st.session_state:
         st.session_state.show_register = False
+    if "show_forgot_password" not in st.session_state:
+        st.session_state.show_forgot_password = False
+    if "show_reset_password" not in st.session_state:
+        st.session_state.show_reset_password = False
+    if "reset_username" not in st.session_state:
+        st.session_state.reset_username = None
+    if "reset_code" not in st.session_state:
+        st.session_state.reset_code = None
+        
+    # Show password reset pages if requested
+    if st.session_state.get("show_forgot_password", False):
+        render_forgot_password_page()
+        return False
+        
+    if st.session_state.get("show_reset_password", False):
+        render_reset_password_page()
+        return False
         
     # Show registration page if requested
     if st.session_state.get("show_register", False):

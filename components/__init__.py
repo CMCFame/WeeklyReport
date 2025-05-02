@@ -15,5 +15,7 @@ from components.auth import (
     render_register_page,
     render_user_profile,
     render_logout_button,
-    render_admin_user_management
+    render_admin_user_management,
+    render_forgot_password_page,
+    render_reset_password_page
 )
