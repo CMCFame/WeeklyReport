@@ -3,11 +3,8 @@
 
 import streamlit as st
 import pandas as pd
-from utils.user_auth import (
-    login_user, logout_user, create_user, generate_reset_code,
-    reset_password, verify_reset_code, update_user, ROLES, 
-    get_user, get_all_users, delete_user
-)
+# Import the whole module instead of individual functions
+from utils import user_auth
 
 def render_login_page():
     """Render the login page."""
@@ -21,7 +18,7 @@ def render_login_page():
         submitted = st.form_submit_button("Login")
         
         if submitted:
-            if login_user(username, password):
+            if user_auth.login_user(username, password):
                 st.rerun()
     
     # Display login error if any
@@ -61,7 +58,8 @@ def render_register_page():
         role = "team_member"
         if st.session_state.get("authenticated") and st.session_state.get("user_info"):
             if st.session_state.user_info.get("role") == "admin":
-                role = st.selectbox("Role", options=list(ROLES.keys()), format_func=lambda x: ROLES[x])
+                role = st.selectbox("Role", options=list(user_auth.ROLES.keys()), 
+                                    format_func=lambda x: user_auth.ROLES[x])
         
         submitted = st.form_submit_button("Register")
         
@@ -73,7 +71,7 @@ def render_register_page():
                 st.error("Passwords do not match.")
             else:
                 # Create new user
-                user_data = create_user(username, password, email, full_name, role)
+                user_data = user_auth.create_user(username, password, email, full_name, role)
                 if user_data:
                     st.success("Account created successfully! You can now log in.")
                     # Clear registration flag
@@ -101,7 +99,7 @@ def render_user_profile():
     current_username = user_info.get("username")
     
     # Refresh user data
-    fresh_user_data = get_user(current_username)
+    fresh_user_data = user_auth.get_user(current_username)
     if not fresh_user_data:
         st.error("Unable to retrieve user data.")
         return
@@ -110,7 +108,7 @@ def render_user_profile():
     st.write(f"**Username:** {fresh_user_data.get('username')}")
     st.write(f"**Full Name:** {fresh_user_data.get('full_name')}")
     st.write(f"**Email:** {fresh_user_data.get('email')}")
-    st.write(f"**Role:** {ROLES.get(fresh_user_data.get('role'), 'Unknown')}")
+    st.write(f"**Role:** {user_auth.ROLES.get(fresh_user_data.get('role'), 'Unknown')}")
     st.write(f"**Last Login:** {fresh_user_data.get('last_login', 'Never')}")
     
     st.divider()
@@ -141,7 +139,7 @@ def render_user_profile():
                 updates["password"] = new_password
             
             # Update user
-            updated_user = update_user(current_username, updates)
+            updated_user = user_auth.update_user(current_username, updates)
             if updated_user:
                 # Update session state
                 st.session_state.user_info = updated_user
@@ -154,7 +152,7 @@ def render_logout_button():
     """Render a logout button in the sidebar."""
     if st.session_state.get("authenticated"):
         if st.sidebar.button("Logout"):
-            logout_user()
+            user_auth.logout_user()
             st.rerun()
 
 def render_forgot_password_page():
@@ -172,7 +170,7 @@ def render_forgot_password_page():
                 st.error("Please enter your username or email.")
             else:
                 # Generate reset code
-                success, message, code = generate_reset_code(username_or_email)
+                success, message, code = user_auth.generate_reset_code(username_or_email)
                 
                 if success:
                     # In a real app, the code would be emailed
@@ -183,7 +181,7 @@ def render_forgot_password_page():
                     # Store username for the reset page
                     if '@' in username_or_email:
                         # If email was provided, get the associated username
-                        all_users = get_all_users(include_sensitive=True)
+                        all_users = user_auth.get_all_users(include_sensitive=True)
                         for user in all_users:
                             if user.get("email") == username_or_email:
                                 st.session_state.reset_username = user.get("username")
@@ -232,7 +230,7 @@ def render_reset_password_page():
                 st.error("Passwords do not match.")
             else:
                 # Reset the password
-                success = reset_password(st.session_state.reset_username, new_password, reset_code)
+                success = user_auth.reset_password(st.session_state.reset_username, new_password, reset_code)
                 
                 if success:
                     st.success("Password reset successfully! You can now log in with your new password.")
@@ -275,8 +273,8 @@ def render_admin_user_management():
         email = st.text_input("Email", key="admin_new_email")
         role = st.selectbox(
             "Role", 
-            options=list(ROLES.keys()), 
-            format_func=lambda x: ROLES[x],
+            options=list(user_auth.ROLES.keys()), 
+            format_func=lambda x: user_auth.ROLES[x],
             key="admin_new_role"
         )
         
@@ -288,7 +286,7 @@ def render_admin_user_management():
                 st.error("All fields are required.")
             else:
                 # Create new user
-                user_data = create_user(username, password, email, full_name, role)
+                user_data = user_auth.create_user(username, password, email, full_name, role)
                 if user_data:
                     st.success(f"User '{username}' created successfully!")
                     st.rerun()
@@ -299,7 +297,7 @@ def render_admin_user_management():
     st.subheader("Existing Users")
     
     # Get all users
-    users = get_all_users()
+    users = user_auth.get_all_users()
     
     if not users:
         st.info("No users found.")
@@ -312,7 +310,7 @@ def render_admin_user_management():
             "Username": user.get("username", ""),
             "Full Name": user.get("full_name", ""),
             "Email": user.get("email", ""),
-            "Role": ROLES.get(user.get("role", ""), "Unknown"),
+            "Role": user_auth.ROLES.get(user.get("role", ""), "Unknown"),
             "Last Login": user.get("last_login", "Never")[:19].replace("T", " ") if user.get("last_login") else "Never",
             "Actions": user.get("username", "")  # We'll use this to identify the user for actions
         })
@@ -344,7 +342,7 @@ def render_admin_user_management():
                             confirm = st.form_submit_button("Confirm Delete")
                             
                             if confirm:
-                                if delete_user(username):
+                                if user_auth.delete_user(username):
                                     st.success(f"User {username} deleted successfully.")
                                     st.rerun()
                                 else:

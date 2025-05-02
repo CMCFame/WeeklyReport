@@ -33,7 +33,9 @@ from components.past_reports import render_past_reports
 from components.auth import (
     check_authentication, 
     render_user_profile,
-    render_admin_user_management
+    render_admin_user_management,
+    render_forgot_password_page,
+    render_reset_password_page
 )
 
 # --- CALLBACK TO CLEAR FORM & RERUN ---

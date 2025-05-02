@@ -25,3 +25,22 @@ from utils.file_ops import (
     delete_report,
     export_report_as_pdf
 )
+
+# Import auth functions
+from utils.user_auth import (
+    login_user, 
+    logout_user, 
+    create_user, 
+    update_user, 
+    get_user, 
+    get_all_users, 
+    delete_user,
+    generate_reset_code, 
+    reset_password, 
+    verify_reset_code,
+    ROLES, 
+    init_session_auth, 
+    require_auth, 
+    require_role,
+    create_admin_if_needed
+)
