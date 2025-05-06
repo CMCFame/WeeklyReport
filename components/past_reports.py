@@ -3,7 +3,6 @@
 
 import streamlit as st
 from utils import file_ops, session
-import json
 
 def render_past_reports():
     """Render the past reports view.
@@ -115,78 +114,21 @@ def render_report_details(report, index):
         if report.get('accomplishments'):
             st.subheader('Last Week\'s Accomplishments')
             for accomplishment in report['accomplishments']:
-                # Check if the accomplishment is in JSON format
-                if isinstance(accomplishment, str) and accomplishment.startswith('{') and accomplishment.endswith('}'):
-                    try:
-                        acc_data = json.loads(accomplishment)
-                        text = acc_data.get('text', accomplishment)
-                        project = acc_data.get('project', '')
-                        milestone = acc_data.get('milestone', '')
-                        
-                        # Format with project/milestone info if available
-                        project_info = ""
-                        if project:
-                            project_info = f" (Project: {project}"
-                            if milestone:
-                                project_info += f", Milestone: {milestone}"
-                            project_info += ")"
-                            
-                        st.markdown(f"- {text}{project_info}")
-                    except:
-                        st.markdown(f"- {accomplishment}")
-                else:
-                    st.markdown(f"- {accomplishment}")
+                # Simple display of accomplishments
+                st.markdown(f"- {accomplishment}")
         
         # Action Items
         if report.get('followups'):
             st.subheader('Follow-ups')
             for followup in report['followups']:
-                # Check if the followup is in JSON format
-                if isinstance(followup, str) and followup.startswith('{') and followup.endswith('}'):
-                    try:
-                        data = json.loads(followup)
-                        text = data.get('text', followup)
-                        project = data.get('project', '')
-                        milestone = data.get('milestone', '')
-                        
-                        # Format with project/milestone info if available
-                        project_info = ""
-                        if project:
-                            project_info = f" (Project: {project}"
-                            if milestone:
-                                project_info += f", Milestone: {milestone}"
-                            project_info += ")"
-                            
-                        st.markdown(f"- {text}{project_info}")
-                    except:
-                        st.markdown(f"- {followup}")
-                else:
-                    st.markdown(f"- {followup}")
+                # Simple display of followups
+                st.markdown(f"- {followup}")
         
         if report.get('nextsteps'):
             st.subheader('Next Steps')
             for nextstep in report['nextsteps']:
-                # Check if the nextstep is in JSON format
-                if isinstance(nextstep, str) and nextstep.startswith('{') and nextstep.endswith('}'):
-                    try:
-                        data = json.loads(nextstep)
-                        text = data.get('text', nextstep)
-                        project = data.get('project', '')
-                        milestone = data.get('milestone', '')
-                        
-                        # Format with project/milestone info if available
-                        project_info = ""
-                        if project:
-                            project_info = f" (Project: {project}"
-                            if milestone:
-                                project_info += f", Milestone: {milestone}"
-                            project_info += ")"
-                            
-                        st.markdown(f"- {text}{project_info}")
-                    except:
-                        st.markdown(f"- {nextstep}")
-                else:
-                    st.markdown(f"- {nextstep}")
+                # Simple display of nextsteps
+                st.markdown(f"- {nextstep}")
         
         # Optional sections
         render_optional_report_sections(report)
@@ -224,11 +166,18 @@ def render_report_details(report, index):
         
         with col3:
             if st.button('Delete Report', key=f"delete_{index}", use_container_width=True):
-                # Add a confirmation dialog
-                confirm = st.button(f"Confirm Delete", key=f"confirm_delete_{index}")
-                if confirm:
-                    if file_ops.delete_report(report.get('id')):
-                        st.success('Report deleted successfully!')
+                # Confirm delete dialog
+                st.warning("Are you sure you want to delete this report?")
+                confirm_col1, confirm_col2 = st.columns(2)
+                
+                with confirm_col1:
+                    if st.button("Yes, delete it", key=f"confirm_{index}"):
+                        if file_ops.delete_report(report.get('id')):
+                            st.success('Report deleted successfully!')
+                            st.rerun()
+                
+                with confirm_col2:
+                    if st.button("Cancel", key=f"cancel_{index}"):
                         st.rerun()
     except Exception as e:
         st.error(f"Error rendering report details: {str(e)}")
