@@ -7,7 +7,10 @@ designed to standardize interaction recording between managers and team members.
 """
 
 import streamlit as st
+import pandas as pd
 from datetime import datetime
+import os
+from pathlib import Path
 
 # Import utility modules
 from utils.session import (
@@ -18,6 +21,7 @@ from utils.session import (
 )
 from utils.file_ops import save_report
 from utils.user_auth import create_admin_if_needed
+from utils.csv_utils import ensure_project_data_file
 
 # Import component modules
 from components.user_info import render_user_info
@@ -51,10 +55,54 @@ st.set_page_config(
     layout="wide"
 )
 
+def handle_csv_upload():
+    """Handle upload of project data CSV file."""
+    uploaded_file = st.file_uploader("Upload Project Data CSV", type="csv")
+    
+    if uploaded_file is not None:
+        # Display file info
+        file_details = {"Filename": uploaded_file.name, "Size": uploaded_file.size}
+        st.write(file_details)
+        
+        try:
+            # Read uploaded CSV to validate format
+            df = pd.read_csv(uploaded_file)
+            
+            # Check required columns
+            required_columns = ["Project", "Milestone: Milestone Name", "Timecard: Owner Name"]
+            missing_columns = [col for col in required_columns if col not in df.columns]
+            
+            if missing_columns:
+                st.error(f"Upload failed! CSV file is missing required columns: {', '.join(missing_columns)}")
+                return
+            
+            # Save the file to the data directory
+            Path("data").mkdir(exist_ok=True)
+            temp_path = f"data/temp_{uploaded_file.name}"
+            
+            with open(temp_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            
+            # Move to final location
+            os.rename(temp_path, "data/project_data.csv")
+            
+            # Display success message with row counts
+            st.success(f"✅ Project data uploaded successfully! Imported {len(df)} rows with {len(df['Project'].unique())} unique projects.")
+            
+            # Show preview of the data
+            with st.expander("Preview Imported Data"):
+                st.dataframe(df.head(10))
+                
+        except Exception as e:
+            st.error(f"Error processing CSV file: {str(e)}")
+
 def main():
     """Main application function."""
     # Initialize session state
     init_session_state()
+    
+    # Ensure project data file exists
+    ensure_project_data_file()
     
     # Create admin user if no users exist
     create_admin_if_needed()
@@ -73,11 +121,16 @@ def main():
         
         # Navigation in sidebar
         st.sidebar.title("Navigation")
-        page = st.sidebar.radio(
-            "Go to",
-            ["Weekly Report", "Past Reports", "User Profile"] + 
-            (["User Management"] if user_role == "admin" else [])
-        )
+        
+        # Admin and managers see Project Data management
+        if user_role in ["admin", "manager"]:
+            page_options = ["Weekly Report", "Past Reports", "User Profile", "Project Data"]
+            if user_role == "admin":
+                page_options.append("User Management")
+        else:
+            page_options = ["Weekly Report", "Past Reports", "User Profile"]
+            
+        page = st.sidebar.radio("Go to", page_options)
         
         # Render selected page
         if page == "Weekly Report":
@@ -89,8 +142,61 @@ def main():
             render_user_profile()
         elif page == "User Management" and user_role == "admin":
             render_admin_user_management()
+        elif page == "Project Data" and user_role in ["admin", "manager"]:
+            render_project_data_page()
     else:
         st.error("Session error. Please log out and log in again.")
+
+def render_project_data_page():
+    """Render the project data management page."""
+    st.title("Project Data Management")
+    st.write("Upload and manage project data for reporting.")
+    
+    # Handle CSV upload
+    handle_csv_upload()
+    
+    # Show current project data if available
+    try:
+        if os.path.exists("data/project_data.csv"):
+            st.subheader("Current Project Data")
+            df = pd.read_csv("data/project_data.csv")
+            
+            # Show counts
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Rows", len(df))
+            with col2:
+                st.metric("Unique Projects", len(df["Project"].unique()))
+            with col3:
+                st.metric("Unique Team Members", len(df["Timecard: Owner Name"].unique()))
+            
+            # Display the data
+            with st.expander("View All Project Data"):
+                st.dataframe(df)
+            
+            # Option to show projects per user
+            st.subheader("Projects by Team Member")
+            
+            # Get unique team members
+            team_members = sorted(df["Timecard: Owner Name"].unique().tolist())
+            selected_member = st.selectbox("Select Team Member", ["All Team Members"] + team_members)
+            
+            if selected_member == "All Team Members":
+                # Show counts for all team members
+                member_counts = df.groupby("Timecard: Owner Name")["Project"].nunique().reset_index()
+                member_counts.columns = ["Team Member", "Project Count"]
+                st.dataframe(member_counts)
+            else:
+                # Filter projects for selected team member
+                member_df = df[df["Timecard: Owner Name"] == selected_member]
+                member_projects = member_df[["Project", "Milestone: Milestone Name"]].drop_duplicates()
+                st.dataframe(member_projects)
+                
+        else:
+            st.info("No project data found. Please upload a CSV file with project data.")
+            
+    except Exception as e:
+        st.error(f"Error displaying project data: {str(e)}")
 
 def render_weekly_report_page():
     """Render the main weekly report form."""

@@ -5,12 +5,13 @@ import streamlit as st
 from datetime import datetime
 from utils import session
 from utils.constants import PRIORITY_OPTIONS
+from utils.csv_utils import get_user_projects, get_project_milestones
 
 def render_upcoming_activities():
     """Render the upcoming activities section.
     
     This section allows users to add, edit, and remove planned future activities
-    with details like priority and expected start date.
+    with details like project, milestone, priority and expected start date.
     """
     st.header('📅 Upcoming Activities')
     st.write('What activities are planned for the near future? Include expected start date.')
@@ -37,7 +38,65 @@ def render_upcoming_activities():
 
 def render_upcoming_activity_form(index, activity):
     """Render form fields for an upcoming activity."""
-    # Priority and Expected Start
+    # Get username for project filtering
+    username = ""
+    if st.session_state.get("user_info"):
+        username = st.session_state.user_info.get("username", "")
+    
+    # First row: Project and Milestone
+    col_proj, col_mile = st.columns(2)
+    
+    with col_proj:
+        # Get available projects for the user
+        available_projects = get_user_projects(username)
+        
+        # Current value
+        current_project = activity.get('project', '')
+        
+        # If current value not in available projects, add it to avoid errors
+        if current_project and current_project not in available_projects:
+            available_projects.append(current_project)
+        
+        # Empty option first
+        if not available_projects or available_projects[0] != '':
+            available_projects = [''] + available_projects
+            
+        # Project selection
+        project = st.selectbox(
+            'Project', 
+            options=available_projects,
+            index=available_projects.index(current_project) if current_project in available_projects else 0,
+            key=f"up_proj_{index}",
+            help="Select the project for this upcoming activity"
+        )
+        session.update_upcoming_activity(index, 'project', project)
+    
+    with col_mile:
+        # Get available milestones for the selected project
+        available_milestones = get_project_milestones(activity.get('project', ''))
+        
+        # Current value
+        current_milestone = activity.get('milestone', '')
+        
+        # If current value not in available milestones, add it to avoid errors
+        if current_milestone and current_milestone not in available_milestones:
+            available_milestones.append(current_milestone)
+        
+        # Empty option first
+        if not available_milestones or available_milestones[0] != '':
+            available_milestones = [''] + available_milestones
+            
+        # Milestone selection
+        milestone = st.selectbox(
+            'Milestone', 
+            options=available_milestones,
+            index=available_milestones.index(current_milestone) if current_milestone in available_milestones else 0,
+            key=f"up_mile_{index}",
+            help="Select the milestone for this upcoming activity"
+        )
+        session.update_upcoming_activity(index, 'milestone', milestone)
+    
+    # Second row: Priority and Expected Start
     col1, col2 = st.columns(2)
     
     with col1:

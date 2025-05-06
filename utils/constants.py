@@ -8,6 +8,8 @@ BILLABLE_OPTIONS = ["", "Yes", "No"]
 
 # Current activities default
 DEFAULT_CURRENT_ACTIVITY = {
+    'project': '',
+    'milestone': '',
     'priority': 'Medium',
     'status': 'In Progress',
     'customer': '',
@@ -19,6 +21,8 @@ DEFAULT_CURRENT_ACTIVITY = {
 
 # Upcoming activities default
 DEFAULT_UPCOMING_ACTIVITY = {
+    'project': '',
+    'milestone': '',
     'priority': 'Medium',
     'expected_start': '',  # This will be set to next Monday dynamically
     'description': ''

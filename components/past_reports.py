@@ -45,8 +45,16 @@ def render_report_details(report, index):
         if report.get('current_activities'):
             st.subheader('Current Activities')
             for activity in report['current_activities']:
+                # Include project and milestone if they exist
+                project_info = ""
+                if activity.get('project'):
+                    project_info = f"Project: {activity.get('project')}"
+                    if activity.get('milestone'):
+                        project_info += f", Milestone: {activity.get('milestone')}"
+                    project_info += " | "
+                
                 st.markdown(f"- **{activity.get('description', '')}** "
-                            f"(Priority: {activity.get('priority')}, "
+                            f"({project_info}Priority: {activity.get('priority')}, "
                             f"Status: {activity.get('status')}, "
                             f"Progress: {activity.get('progress')}%)")
         
@@ -54,8 +62,16 @@ def render_report_details(report, index):
         if report.get('upcoming_activities'):
             st.subheader('Upcoming Activities')
             for activity in report['upcoming_activities']:
+                # Include project and milestone if they exist
+                project_info = ""
+                if activity.get('project'):
+                    project_info = f"Project: {activity.get('project')}"
+                    if activity.get('milestone'):
+                        project_info += f", Milestone: {activity.get('milestone')}"
+                    project_info += " | "
+                
                 st.markdown(f"- **{activity.get('description', '')}** "
-                            f"(Priority: {activity.get('priority')}, "
+                            f"({project_info}Priority: {activity.get('priority')}, "
                             f"Expected Start: {activity.get('expected_start', 'Not specified')})")
         
         # Accomplishments
