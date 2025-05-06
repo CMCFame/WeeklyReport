@@ -3,6 +3,7 @@
 
 import streamlit as st
 from utils import file_ops, session
+import json
 
 def render_past_reports():
     """Render the past reports view.
@@ -18,11 +19,46 @@ def render_past_reports():
             st.info('No past reports found.')
             return
         
-        # Optionally add search and filters here if needed
+        # Add search and filter options
+        st.subheader("Filter Reports")
         
+        # Get unique weeks and names for filtering
+        weeks = sorted(list(set([r.get('reporting_week', 'Unknown') for r in reports])), reverse=True)
+        names = sorted(list(set([r.get('name', 'Anonymous') for r in reports])))
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            selected_week = st.selectbox("Filter by Week", ["All Weeks"] + weeks)
+        
+        with col2:
+            selected_name = st.selectbox("Filter by Name", ["All Names"] + names)
+        
+        # Apply filters
+        filtered_reports = reports
+        
+        if selected_week != "All Weeks":
+            filtered_reports = [r for r in filtered_reports if r.get('reporting_week') == selected_week]
+            
+        if selected_name != "All Names":
+            filtered_reports = [r for r in filtered_reports if r.get('name') == selected_name]
+            
+        if not filtered_reports:
+            st.info("No reports match your filter criteria.")
+            return
+            
         # Display reports
-        for i, report in enumerate(reports):
-            with st.expander(f"{report.get('name', 'Anonymous')} - {report.get('reporting_week', 'Unknown')} ({report.get('timestamp', '')[:10]})"):
+        st.subheader(f"Found {len(filtered_reports)} Report(s)")
+        
+        for i, report in enumerate(filtered_reports):
+            report_title = f"{report.get('name', 'Anonymous')} - {report.get('reporting_week', 'Unknown')}"
+            report_status = report.get('status', 'submitted')
+            report_date = report.get('timestamp', '')[:10]
+            
+            # Use different icons based on status
+            status_icon = "📝" if report_status == "draft" else "✅"
+            
+            with st.expander(f"{status_icon} {report_title} ({report_date})"):
                 render_report_details(report, i)
                 
     except Exception as e:
@@ -40,6 +76,7 @@ def render_report_details(report, index):
         st.write(f"**Name:** {report.get('name', 'Anonymous')}")
         st.write(f"**Reporting Week:** {report.get('reporting_week', 'Unknown')}")
         st.write(f"**Submitted:** {report.get('timestamp', '')[:19].replace('T', ' ')}")
+        st.write(f"**Status:** {report.get('status', 'submitted').capitalize()}")
         
         # Current Activities
         if report.get('current_activities'):
@@ -78,18 +115,78 @@ def render_report_details(report, index):
         if report.get('accomplishments'):
             st.subheader('Last Week\'s Accomplishments')
             for accomplishment in report['accomplishments']:
-                st.markdown(f"- {accomplishment}")
+                # Check if the accomplishment is in JSON format
+                if isinstance(accomplishment, str) and accomplishment.startswith('{') and accomplishment.endswith('}'):
+                    try:
+                        acc_data = json.loads(accomplishment)
+                        text = acc_data.get('text', accomplishment)
+                        project = acc_data.get('project', '')
+                        milestone = acc_data.get('milestone', '')
+                        
+                        # Format with project/milestone info if available
+                        project_info = ""
+                        if project:
+                            project_info = f" (Project: {project}"
+                            if milestone:
+                                project_info += f", Milestone: {milestone}"
+                            project_info += ")"
+                            
+                        st.markdown(f"- {text}{project_info}")
+                    except:
+                        st.markdown(f"- {accomplishment}")
+                else:
+                    st.markdown(f"- {accomplishment}")
         
         # Action Items
         if report.get('followups'):
             st.subheader('Follow-ups')
             for followup in report['followups']:
-                st.markdown(f"- {followup}")
+                # Check if the followup is in JSON format
+                if isinstance(followup, str) and followup.startswith('{') and followup.endswith('}'):
+                    try:
+                        data = json.loads(followup)
+                        text = data.get('text', followup)
+                        project = data.get('project', '')
+                        milestone = data.get('milestone', '')
+                        
+                        # Format with project/milestone info if available
+                        project_info = ""
+                        if project:
+                            project_info = f" (Project: {project}"
+                            if milestone:
+                                project_info += f", Milestone: {milestone}"
+                            project_info += ")"
+                            
+                        st.markdown(f"- {text}{project_info}")
+                    except:
+                        st.markdown(f"- {followup}")
+                else:
+                    st.markdown(f"- {followup}")
         
         if report.get('nextsteps'):
             st.subheader('Next Steps')
             for nextstep in report['nextsteps']:
-                st.markdown(f"- {nextstep}")
+                # Check if the nextstep is in JSON format
+                if isinstance(nextstep, str) and nextstep.startswith('{') and nextstep.endswith('}'):
+                    try:
+                        data = json.loads(nextstep)
+                        text = data.get('text', nextstep)
+                        project = data.get('project', '')
+                        milestone = data.get('milestone', '')
+                        
+                        # Format with project/milestone info if available
+                        project_info = ""
+                        if project:
+                            project_info = f" (Project: {project}"
+                            if milestone:
+                                project_info += f", Milestone: {milestone}"
+                            project_info += ")"
+                            
+                        st.markdown(f"- {text}{project_info}")
+                    except:
+                        st.markdown(f"- {nextstep}")
+                else:
+                    st.markdown(f"- {nextstep}")
         
         # Optional sections
         render_optional_report_sections(report)
@@ -98,7 +195,7 @@ def render_report_details(report, index):
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            if st.button('Use as Template', key=f"template_{index}"):
+            if st.button('Use as Template', key=f"template_{index}", use_container_width=True):
                 try:
                     # Create a deep copy of the report data
                     report_copy = {}
@@ -122,14 +219,17 @@ def render_report_details(report, index):
                             st.text(line)
         
         with col2:
-            if st.button('Export as PDF', key=f"export_{index}"):
+            if st.button('Export as PDF', key=f"export_{index}", use_container_width=True):
                 file_ops.export_report_as_pdf(report)
         
         with col3:
-            if st.button('Delete Report', key=f"delete_{index}"):
-                if file_ops.delete_report(report.get('id')):
-                    st.success('Report deleted successfully!')
-                    st.rerun()
+            if st.button('Delete Report', key=f"delete_{index}", use_container_width=True):
+                # Add a confirmation dialog
+                confirm = st.button(f"Confirm Delete", key=f"confirm_delete_{index}")
+                if confirm:
+                    if file_ops.delete_report(report.get('id')):
+                        st.success('Report deleted successfully!')
+                        st.rerun()
     except Exception as e:
         st.error(f"Error rendering report details: {str(e)}")
 

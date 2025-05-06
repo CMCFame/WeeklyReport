@@ -27,8 +27,9 @@ from utils.csv_utils import ensure_project_data_file
 from components.user_info import render_user_info
 from components.current_activities import render_current_activities
 from components.upcoming_activities import render_upcoming_activities
-from components.accomplishments import render_accomplishments
-from components.action_items import render_action_items
+# Import enhanced components
+from components.enhanced_accomplishments import render_enhanced_accomplishments
+from components.enhanced_action_items import render_enhanced_action_items
 from components.optional_sections import (
     render_optional_section_toggles,
     render_all_optional_sections
@@ -221,11 +222,11 @@ def render_weekly_report_page():
     # Upcoming Activities Section
     render_upcoming_activities()
 
-    # Last Week's Accomplishments Section
-    render_accomplishments()
+    # Enhanced Last Week's Accomplishments Section
+    render_enhanced_accomplishments()
 
-    # Action Items Section
-    render_action_items()
+    # Enhanced Action Items Section
+    render_enhanced_action_items()
 
     # Optional Sections Toggle
     render_optional_section_toggles()
