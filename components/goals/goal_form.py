@@ -2,6 +2,8 @@
 """Goal form component for the Weekly Report app."""
 
 import streamlit as st
+import os  # Add this import
+import json  # Add this import
 from datetime import datetime
 from utils.goal_session import (
     reset_goal_form, 

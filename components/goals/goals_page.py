@@ -2,6 +2,7 @@
 """Goals page component for the Weekly Report app."""
 
 import streamlit as st
+from pathlib import Path  # Add this import
 from utils.goal_session import init_goal_session_state, reset_goal_form
 from components.goals.goal_dashboard import render_goal_dashboard
 from components.goals.goal_form import render_goal_form
