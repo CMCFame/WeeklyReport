@@ -42,6 +42,9 @@ from components.auth import (
     render_forgot_password_page,
     render_reset_password_page
 )
+# Import new import components
+from components.user_import import render_user_import
+from components.report_import import render_report_import
 
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
@@ -127,7 +130,7 @@ def main():
         if user_role in ["admin", "manager"]:
             page_options = ["Weekly Report", "Past Reports", "User Profile", "Project Data"]
             if user_role == "admin":
-                page_options.append("User Management")
+                page_options.extend(["User Management", "Import Users", "Import Reports"])
         else:
             page_options = ["Weekly Report", "Past Reports", "User Profile"]
             
@@ -145,6 +148,10 @@ def main():
             render_admin_user_management()
         elif page == "Project Data" and user_role in ["admin", "manager"]:
             render_project_data_page()
+        elif page == "Import Users" and user_role == "admin":
+            render_user_import()
+        elif page == "Import Reports" and user_role == "admin":
+            render_report_import()
     else:
         st.error("Session error. Please log out and log in again.")
 

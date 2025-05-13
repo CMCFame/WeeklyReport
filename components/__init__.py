@@ -19,3 +19,15 @@ from components.auth import (
     render_forgot_password_page,
     render_reset_password_page
 )
+
+# Import simplified components
+from components.simple_accomplishments import render_simple_accomplishments
+from components.simple_action_items import render_simple_action_items
+
+# Import enhanced components
+from components.enhanced_accomplishments import render_enhanced_accomplishments
+from components.enhanced_action_items import render_enhanced_action_items
+
+# Import import components
+from components.user_import import render_user_import
+from components.report_import import render_report_import
