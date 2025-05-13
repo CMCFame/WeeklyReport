@@ -1,4 +1,4 @@
-# app.py (updated with error handling)
+# app.py (fixed)
 """
 Weekly Activity Report Application
 
@@ -7,11 +7,25 @@ designed to standardize interaction recording between managers and team members.
 """
 
 import streamlit as st
+
+# Set page configuration - THIS MUST BE THE FIRST STREAMLIT COMMAND
+st.set_page_config(
+    page_title="Weekly Activity Report",
+    page_icon="📋",
+    layout="wide"
+)
+
+# Now import other modules
 import pandas as pd
 from datetime import datetime
 import os
 from pathlib import Path
 import traceback
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Import utility modules
 from utils.session import (
@@ -24,12 +38,17 @@ from utils.file_ops import save_report
 from utils.user_auth import create_admin_if_needed
 from utils.csv_utils import ensure_project_data_file
 
+# Define module availability flags
+TEMPLATES_AVAILABLE = False
+PRIORITIZATION_AVAILABLE = False
+EXPORT_AVAILABLE = False
+GOALS_AVAILABLE = False
+
 # Import component modules with error handling
 try:
     from components.user_info import render_user_info
     from components.current_activities import render_current_activities
     from components.upcoming_activities import render_upcoming_activities
-    # Import simplified components
     from components.simple_accomplishments import render_simple_accomplishments
     from components.simple_action_items import render_simple_action_items
     from components.optional_sections import (
@@ -55,49 +74,38 @@ try:
         )
         TEMPLATES_AVAILABLE = True
     except ImportError:
-        TEMPLATES_AVAILABLE = False
-        st.warning("Templates module not available.")
+        logger.warning("Templates module not available.")
 
     # Import prioritization components if available
     try:
         from components.prioritization.priority_matrix import render_priority_matrix
         PRIORITIZATION_AVAILABLE = True
     except ImportError:
-        PRIORITIZATION_AVAILABLE = False
-        st.warning("Prioritization module not available.")
+        logger.warning("Prioritization module not available.")
 
     # Import export components if available
     try:
         from components.export.export_panel import render_export_panel, render_export_page
         EXPORT_AVAILABLE = True
     except ImportError:
-        EXPORT_AVAILABLE = False
-        st.warning("Export module not available.")
+        logger.warning("Export module not available.")
 
     # Import goals components if available
     try:
         from components.goals.goals_page import render_goals_page
         GOALS_AVAILABLE = True
     except ImportError:
-        GOALS_AVAILABLE = False
-        st.warning("Goals module not available.")
+        logger.warning("Goals module not available.")
 
 except Exception as e:
-    st.error(f"Error importing components: {str(e)}")
-    st.code(traceback.format_exc())
+    logger.error(f"Error importing components: {str(e)}")
+    logger.error(traceback.format_exc())
 
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
     """Callback to reset all fields and rerun the app."""
     reset_form()
     st.rerun()
-
-# Set page configuration
-st.set_page_config(
-    page_title="Weekly Activity Report",
-    page_icon="📋",
-    layout="wide"
-)
 
 def handle_csv_upload():
     """Handle upload of project data CSV file."""
@@ -142,6 +150,16 @@ def handle_csv_upload():
 
 def main():
     """Main application function."""
+    # Show module availability info
+    if not TEMPLATES_AVAILABLE:
+        st.sidebar.warning("Templates module not available.")
+    if not PRIORITIZATION_AVAILABLE:
+        st.sidebar.warning("Prioritization module not available.")
+    if not EXPORT_AVAILABLE:
+        st.sidebar.warning("Export module not available.")
+    if not GOALS_AVAILABLE:
+        st.sidebar.warning("Goals module not available.")
+    
     # Initialize session state
     init_session_state()
     
@@ -170,16 +188,16 @@ def main():
         page_options = ["Weekly Report", "Past Reports", "User Profile"]
         
         # Add new modules if available
-        if 'GOALS_AVAILABLE' in globals() and GOALS_AVAILABLE:
+        if GOALS_AVAILABLE:
             page_options.append("Goals & OKRs")
             
-        if 'TEMPLATES_AVAILABLE' in globals() and TEMPLATES_AVAILABLE:
+        if TEMPLATES_AVAILABLE:
             page_options.append("Templates")
             
-        if 'PRIORITIZATION_AVAILABLE' in globals() and PRIORITIZATION_AVAILABLE:
+        if PRIORITIZATION_AVAILABLE:
             page_options.append("Prioritization")
             
-        if 'EXPORT_AVAILABLE' in globals() and EXPORT_AVAILABLE:
+        if EXPORT_AVAILABLE:
             page_options.append("Export")
         
         # Add admin and manager options
@@ -202,13 +220,13 @@ def main():
             render_admin_user_management()
         elif page == "Project Data" and user_role in ["admin", "manager"]:
             render_project_data_page()
-        elif page == "Goals & OKRs" and 'GOALS_AVAILABLE' in globals() and GOALS_AVAILABLE:
+        elif page == "Goals & OKRs" and GOALS_AVAILABLE:
             render_goals_page()
-        elif page == "Templates" and 'TEMPLATES_AVAILABLE' in globals() and TEMPLATES_AVAILABLE:
+        elif page == "Templates" and TEMPLATES_AVAILABLE:
             render_template_manager_page()
-        elif page == "Prioritization" and 'PRIORITIZATION_AVAILABLE' in globals() and PRIORITIZATION_AVAILABLE:
+        elif page == "Prioritization" and PRIORITIZATION_AVAILABLE:
             render_prioritization_page()
-        elif page == "Export" and 'EXPORT_AVAILABLE' in globals() and EXPORT_AVAILABLE:
+        elif page == "Export" and EXPORT_AVAILABLE:
             render_export_page()
     else:
         st.error("Session error. Please log out and log in again.")
@@ -329,7 +347,7 @@ def render_weekly_report_page():
         st.session_state.name = st.session_state.user_info.get("full_name", "")
 
     # Template selector at the top (if available)
-    if 'TEMPLATES_AVAILABLE' in globals() and TEMPLATES_AVAILABLE:
+    if TEMPLATES_AVAILABLE:
         render_template_selector()
 
     # User Information Section
@@ -354,11 +372,11 @@ def render_weekly_report_page():
     render_all_optional_sections()
     
     # Template creator (if available)
-    if 'TEMPLATES_AVAILABLE' in globals() and TEMPLATES_AVAILABLE:
+    if TEMPLATES_AVAILABLE:
         render_template_creator()
     
     # Export panel (if available)
-    if 'EXPORT_AVAILABLE' in globals() and EXPORT_AVAILABLE:
+    if EXPORT_AVAILABLE:
         st.subheader("Export Options")
         if st.button("Show Export Options"):
             render_export_panel()
