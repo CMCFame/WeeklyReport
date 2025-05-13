@@ -4,13 +4,21 @@
 import json
 import uuid
 import os
+import traceback
 from datetime import datetime
 from pathlib import Path
 import streamlit as st
 
 def ensure_goals_directory():
     """Ensure the goals directory exists."""
-    Path("data/goals").mkdir(parents=True, exist_ok=True)
+    try:
+        goals_dir = Path("data/goals")
+        goals_dir.mkdir(parents=True, exist_ok=True)
+        return True
+    except Exception as e:
+        st.error(f"Error creating goals directory: {str(e)}")
+        st.error(traceback.format_exc())
+        return False
 
 def save_goal(goal_data):
     """Save goal data to a JSON file.
@@ -22,7 +30,9 @@ def save_goal(goal_data):
         str: Goal ID
     """
     try:
-        ensure_goals_directory()
+        if not ensure_goals_directory():
+            return None
+            
         goal_id = goal_data.get('id', str(uuid.uuid4()))
         goal_data['id'] = goal_id
         
@@ -36,12 +46,24 @@ def save_goal(goal_data):
             
         goal_data['updated_at'] = datetime.now().isoformat()
         
-        with open(f"data/goals/{goal_id}.json", 'w') as f:
+        # Debug info
+        st.write(f"Saving goal to: data/goals/{goal_id}.json")
+        st.write(f"Goal data: {goal_data}")
+        
+        file_path = f"data/goals/{goal_id}.json"
+        with open(file_path, 'w') as f:
             json.dump(goal_data, f, indent=2)
+            
+        # Verify the file was saved
+        if os.path.exists(file_path):
+            st.success(f"Goal saved successfully to {file_path}")
+        else:
+            st.error(f"File was not created at {file_path}")
         
         return goal_id
     except Exception as e:
         st.error(f"Error saving goal: {str(e)}")
+        st.error(traceback.format_exc())
         return None
 
 def load_goal(goal_id):
@@ -54,8 +76,20 @@ def load_goal(goal_id):
         dict: Goal data or None if not found
     """
     try:
-        with open(f"data/goals/{goal_id}.json", 'r') as f:
+        file_path = f"data/goals/{goal_id}.json"
+        
+        # Check if file exists
+        if not os.path.exists(file_path):
+            st.error(f"Goal file not found: {file_path}")
+            return None
+            
+        st.write(f"Loading goal from: {file_path}")
+            
+        with open(file_path, 'r') as f:
             goal_data = json.load(f)
+            
+        # Debug info
+        st.write(f"Loaded goal: {goal_data.get('title', 'Untitled')}")
             
         # Check if user has access to this goal
         if st.session_state.get("authenticated") and st.session_state.get("user_info"):
@@ -87,6 +121,7 @@ def load_goal(goal_id):
         return None
     except Exception as e:
         st.error(f"Error loading goal {goal_id}: {str(e)}")
+        st.error(traceback.format_exc())
         return None
 
 def get_all_goals(filter_by_user=True):
@@ -99,7 +134,9 @@ def get_all_goals(filter_by_user=True):
         list: List of goal data dictionaries, sorted by updated timestamp (newest first)
     """
     try:
-        ensure_goals_directory()
+        if not ensure_goals_directory():
+            return []
+            
         goals = []
         
         # Get current user ID if authenticated
@@ -109,10 +146,26 @@ def get_all_goals(filter_by_user=True):
             current_user_id = st.session_state.user_info.get("id")
             user_role = st.session_state.user_info.get("role")
         
-        for file_path in Path("data/goals").glob("*.json"):
+        # Check if directory exists and list files
+        goals_dir = Path("data/goals")
+        if not goals_dir.exists():
+            st.warning("Goals directory does not exist")
+            return []
+            
+        goal_files = list(goals_dir.glob("*.json"))
+        st.write(f"Found {len(goal_files)} goal files")
+        
+        if not goal_files:
+            st.info("No goal files found in data/goals directory")
+            return []
+        
+        for file_path in goal_files:
             try:
                 with open(file_path, 'r') as f:
                     goal = json.load(f)
+                    
+                    # Debug info
+                    st.write(f"Loaded goal from {file_path}: {goal.get('title', 'Untitled')}")
                     
                     # Filter by user if requested and not admin/manager
                     if filter_by_user and current_user_id and user_role != "admin":
@@ -129,10 +182,18 @@ def get_all_goals(filter_by_user=True):
                         
             except Exception as e:
                 st.warning(f"Error loading goal {file_path}: {str(e)}")
+                st.warning(traceback.format_exc())
         
+        # Debug info about loaded goals
+        if goals:
+            st.success(f"Successfully loaded {len(goals)} goals")
+        else:
+            st.warning("No goals were loaded")
+            
         return sorted(goals, key=lambda x: x.get('updated_at', ''), reverse=True)
     except Exception as e:
         st.error(f"Error retrieving goals: {str(e)}")
+        st.error(traceback.format_exc())
         return []
 
 def delete_goal(goal_id):

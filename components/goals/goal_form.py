@@ -17,6 +17,19 @@ def render_goal_form():
     # Check if we're editing an existing goal
     editing = bool(st.session_state.current_goal.get('id'))
     
+    # Display debug info if debug mode is enabled
+    debug_mode = st.session_state.get('debug_mode', False)
+    if debug_mode:
+        st.info("Debug mode is enabled. Form actions will show detailed information.")
+        
+        # Show current session state values
+        with st.expander("Current Session State Values"):
+            st.write("Current Goal:", st.session_state.current_goal)
+            st.write("Goal Title:", st.session_state.goal_title)
+            st.write("Goal Type:", st.session_state.goal_type)
+            st.write("Goal Status:", st.session_state.goal_status)
+            # Add more fields as needed
+    
     if editing:
         st.title(f"Edit Goal: {st.session_state.goal_title}")
     else:
@@ -76,13 +89,43 @@ def render_goal_form():
     
     # Form submission handling
     if submit:
+        if debug_mode:
+            st.subheader("Debug: Form Submission")
+            st.write("Collecting form data...")
+            from utils.goal_session import collect_goal_form_data
+            collected_data = collect_goal_form_data()
+            st.json(collected_data)
+            st.write("Saving goal...")
+            
         goal_id = save_goal_from_form()
+        
         if goal_id:
             st.success(f"Goal {'updated' if editing else 'created'} successfully!")
+            
+            if debug_mode:
+                st.write(f"Goal ID: {goal_id}")
+                st.write("Checking if goal file exists...")
+                
+                import os
+                file_path = f"data/goals/{goal_id}.json"
+                if os.path.exists(file_path):
+                    st.success(f"Goal file created successfully at {file_path}")
+                    
+                    # Show file contents
+                    st.write("File contents:")
+                    with open(file_path, 'r') as f:
+                        file_content = f.read()
+                        st.code(file_content, language="json")
+                else:
+                    st.error(f"Goal file was not created at {file_path}")
+            
             # Reset form and redirect to dashboard
-            reset_goal_form()
-            st.session_state.goal_page = "dashboard"
-            st.rerun()
+            if st.button("Return to Dashboard"):
+                reset_goal_form()
+                st.session_state.goal_page = "dashboard"
+                st.rerun()
+        else:
+            st.error("Failed to save goal!")
     
     if cancel:
         reset_goal_form()

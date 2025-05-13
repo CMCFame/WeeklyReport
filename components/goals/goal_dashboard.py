@@ -11,11 +11,52 @@ def render_goal_dashboard():
     """Render the goal dashboard with summary metrics and goal lists."""
     st.title('🎯 Goals Dashboard')
     
+    # Display debug info if debug mode is enabled
+    debug_mode = st.session_state.get('debug_mode', False)
+    
     # Fetch all goals for the current user
+    if debug_mode:
+        st.info("Debug mode is enabled. Loading goals with detailed information.")
+    
     goals = get_all_goals(filter_by_user=True)
+    
+    if debug_mode:
+        st.subheader("Debug: Raw Goal Data")
+        goals_dir = Path("data/goals")
+        st.write(f"Goals directory path: {goals_dir.absolute()}")
+        st.write(f"Directory exists: {goals_dir.exists()}")
+        
+        # Show number of goals loaded
+        st.write(f"Number of goals loaded: {len(goals)}")
+        
+        # Show raw goal data in expander
+        with st.expander("View Raw Goal Data"):
+            for i, goal in enumerate(goals):
+                st.write(f"Goal {i+1}:")
+                st.json(goal)
     
     if not goals:
         st.info("You don't have any goals yet. Create your first goal to get started!")
+        
+        # In debug mode, show a create test goal button
+        if debug_mode:
+            if st.button("Create Test Goal"):
+                from utils.goal_ops import save_goal
+                test_goal = {
+                    "title": "Test Goal",
+                    "description": "This is a test goal created for debugging",
+                    "goal_type": "objective",
+                    "status": "active",
+                    "start_date": datetime.now().strftime('%Y-%m-%d'),
+                    "due_date": (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'),
+                    "manual_progress": 50
+                }
+                goal_id = save_goal(test_goal)
+                if goal_id:
+                    st.success(f"Test goal created with ID: {goal_id}")
+                    st.rerun()
+                else:
+                    st.error("Failed to create test goal")
         return
     
     # Display summary metrics

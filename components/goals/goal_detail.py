@@ -2,6 +2,7 @@
 """Goal detail view component for the Weekly Report app."""
 
 import streamlit as st
+import pandas as pd  # Added missing import
 from datetime import datetime
 from utils.goal_ops import calculate_goal_progress, get_linked_kpis, get_linked_objectives
 
