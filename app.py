@@ -1,4 +1,4 @@
-# app.py
+# app.py (updated with goals)
 """
 Weekly Activity Report Application
 
@@ -42,6 +42,9 @@ from components.auth import (
     render_forgot_password_page,
     render_reset_password_page
 )
+
+# Import goals components
+from components.goals.goals_page import render_goals_page
 
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
@@ -125,11 +128,11 @@ def main():
         
         # Admin and managers see Project Data management
         if user_role in ["admin", "manager"]:
-            page_options = ["Weekly Report", "Past Reports", "User Profile", "Project Data"]
+            page_options = ["Weekly Report", "Past Reports", "Goals & OKRs", "User Profile", "Project Data"]
             if user_role == "admin":
                 page_options.append("User Management")
         else:
-            page_options = ["Weekly Report", "Past Reports", "User Profile"]
+            page_options = ["Weekly Report", "Past Reports", "Goals & OKRs", "User Profile"]
             
         page = st.sidebar.radio("Go to", page_options)
         
@@ -145,6 +148,8 @@ def main():
             render_admin_user_management()
         elif page == "Project Data" and user_role in ["admin", "manager"]:
             render_project_data_page()
+        elif page == "Goals & OKRs":
+            render_goals_page()
     else:
         st.error("Session error. Please log out and log in again.")
 
