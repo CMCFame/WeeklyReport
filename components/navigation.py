@@ -41,9 +41,11 @@ def render_navigation():
     if user_role == "admin":
         sections["team"]["pages"].insert(0, "User Management")
         sections["admin"]["pages"].extend(["Import Users", "Import Reports", "System Settings"])
+        sections["goals"]["pages"].append("Import Objectives")  # Add Import Objectives to admin
     elif user_role == "manager":
         sections["team"]["pages"].insert(0, "User Management")
         sections["admin"]["pages"].append("Import Reports")
+        sections["goals"]["pages"].append("Import Objectives")  # Add Import Objectives to manager
     
     # Render each section
     for section_key, section in sections.items():
@@ -57,7 +59,7 @@ def render_navigation():
             # Render pages in this section
             for page in section["pages"]:
                 # Skip pages that require higher permissions
-                if page in ["User Management", "Import Users", "Import Reports", "System Settings"] and user_role == "team_member":
+                if page in ["User Management", "Import Users", "Import Reports", "System Settings", "Import Objectives"] and user_role == "team_member":
                     continue
                     
                 # Select page button
@@ -78,7 +80,7 @@ def set_page(page_name):
     # Determine the section for this page
     for section_key, section in {
         "reporting": ["Weekly Report", "Past Reports", "Report Templates"],
-        "goals": ["Team Objectives", "Goal Dashboard", "OKR Management"],
+        "goals": ["Team Objectives", "Goal Dashboard", "OKR Management", "Import Objectives"],
         "team": ["User Management", "Team Structure", "1:1 Meetings"],
         "admin": ["User Profile", "Project Data", "Import Users", "Import Reports", "System Settings"]
     }.items():
