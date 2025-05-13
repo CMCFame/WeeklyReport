@@ -31,3 +31,6 @@ from components.enhanced_action_items import render_enhanced_action_items
 # Import import components
 from components.user_import import render_user_import
 from components.report_import import render_report_import
+
+# Import navigation component
+from components.navigation import render_navigation, get_current_page, set_page

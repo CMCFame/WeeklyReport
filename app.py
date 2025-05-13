@@ -27,7 +27,6 @@ from utils.csv_utils import ensure_project_data_file
 from components.user_info import render_user_info
 from components.current_activities import render_current_activities
 from components.upcoming_activities import render_upcoming_activities
-# Import simplified components
 from components.simple_accomplishments import render_simple_accomplishments
 from components.simple_action_items import render_simple_action_items
 from components.optional_sections import (
@@ -38,13 +37,20 @@ from components.past_reports import render_past_reports
 from components.auth import (
     check_authentication, 
     render_user_profile,
-    render_admin_user_management,
-    render_forgot_password_page,
-    render_reset_password_page
+    render_admin_user_management
 )
-# Import new import components
 from components.user_import import render_user_import
 from components.report_import import render_report_import
+from components.navigation import render_navigation, get_current_page
+from components.placeholder import (
+    render_report_templates,
+    render_team_objectives,
+    render_goal_dashboard,
+    render_okr_management,
+    render_team_structure,
+    render_one_on_one_meetings,
+    render_system_settings
+)
 
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
@@ -123,37 +129,63 @@ def main():
         st.sidebar.write(f"**Logged in as:** {user_name}")
         st.sidebar.write(f"**Role:** {user_role.capitalize()}")
         
-        # Navigation in sidebar
-        st.sidebar.title("Navigation")
+        # Render navigation menu
+        render_navigation()
         
-        # Admin and managers see Project Data management
-        if user_role in ["admin", "manager"]:
-            page_options = ["Weekly Report", "Past Reports", "User Profile", "Project Data"]
-            if user_role == "admin":
-                page_options.extend(["User Management", "Import Users", "Import Reports"])
-        else:
-            page_options = ["Weekly Report", "Past Reports", "User Profile"]
-            
-        page = st.sidebar.radio("Go to", page_options)
+        # Get current page
+        current_page = get_current_page()
         
-        # Render selected page
-        if page == "Weekly Report":
-            render_weekly_report_page()
-        elif page == "Past Reports":
-            st.title("Past Reports")
-            render_past_reports()
-        elif page == "User Profile":
-            render_user_profile()
-        elif page == "User Management" and user_role == "admin":
-            render_admin_user_management()
-        elif page == "Project Data" and user_role in ["admin", "manager"]:
-            render_project_data_page()
-        elif page == "Import Users" and user_role == "admin":
-            render_user_import()
-        elif page == "Import Reports" and user_role == "admin":
-            render_report_import()
+        # Render the selected page
+        render_selected_page(current_page)
     else:
         st.error("Session error. Please log out and log in again.")
+
+def render_selected_page(page_name):
+    """Render the page based on the navigation selection.
+    
+    Args:
+        page_name (str): Name of the page to render
+    """
+    # Reporting section
+    if page_name == "Weekly Report":
+        render_weekly_report_page()
+    elif page_name == "Past Reports":
+        st.title("Past Reports")
+        render_past_reports()
+    elif page_name == "Report Templates":
+        render_report_templates()
+    
+    # Goals & Tracking section
+    elif page_name == "Team Objectives":
+        render_team_objectives()
+    elif page_name == "Goal Dashboard":
+        render_goal_dashboard()
+    elif page_name == "OKR Management":
+        render_okr_management()
+    
+    # Team Management section
+    elif page_name == "User Management":
+        render_admin_user_management()
+    elif page_name == "Team Structure":
+        render_team_structure()
+    elif page_name == "1:1 Meetings":
+        render_one_on_one_meetings()
+    
+    # Administration section
+    elif page_name == "User Profile":
+        render_user_profile()
+    elif page_name == "Project Data":
+        render_project_data_page()
+    elif page_name == "Import Users":
+        render_user_import()
+    elif page_name == "Import Reports":
+        render_report_import()
+    elif page_name == "System Settings":
+        render_system_settings()
+    
+    # Fallback
+    else:
+        st.error(f"Page '{page_name}' not found.")
 
 def render_project_data_page():
     """Render the project data management page."""
