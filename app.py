@@ -43,6 +43,19 @@ from components.auth import (
     render_reset_password_page
 )
 
+# Import template components
+from components.templates import (
+    render_template_selector, 
+    render_template_creator,
+    render_template_manager_page
+)
+
+# Import prioritization components
+from components.prioritization import render_priority_matrix
+
+# Import export components
+from components.export import render_export_panel, render_export_page
+
 # Import goals components
 from components.goals.goals_page import render_goals_page
 
@@ -128,11 +141,11 @@ def main():
         
         # Admin and managers see Project Data management
         if user_role in ["admin", "manager"]:
-            page_options = ["Weekly Report", "Past Reports", "Goals & OKRs", "User Profile", "Project Data"]
+            page_options = ["Weekly Report", "Past Reports", "Goals & OKRs", "Templates", "Prioritization", "Export", "User Profile", "Project Data"]
             if user_role == "admin":
                 page_options.append("User Management")
         else:
-            page_options = ["Weekly Report", "Past Reports", "Goals & OKRs", "User Profile"]
+            page_options = ["Weekly Report", "Past Reports", "Goals & OKRs", "Templates", "Prioritization", "Export", "User Profile"]
             
         page = st.sidebar.radio("Go to", page_options)
         
@@ -150,6 +163,12 @@ def main():
             render_project_data_page()
         elif page == "Goals & OKRs":
             render_goals_page()
+        elif page == "Templates":
+            render_template_manager_page()
+        elif page == "Prioritization":
+            render_prioritization_page()
+        elif page == "Export":
+            render_export_page()
     else:
         st.error("Session error. Please log out and log in again.")
 
@@ -204,6 +223,56 @@ def render_project_data_page():
     except Exception as e:
         st.error(f"Error displaying project data: {str(e)}")
 
+def render_prioritization_page():
+    """Render the prioritization page."""
+    st.title("Task Prioritization")
+    st.write("Visualize and prioritize your tasks based on importance and urgency")
+    
+    # Render the priority matrix
+    render_priority_matrix()
+    
+    # Additional tips
+    with st.expander("Prioritization Tips"):
+        st.subheader("Using the Eisenhower Matrix")
+        
+        st.markdown("""
+        The priority matrix above is based on the Eisenhower Matrix (or Urgent-Important Matrix), 
+        a popular time management framework. Here's how to use it effectively:
+        
+        1. **Important & Urgent (Q1)** - Do these tasks immediately
+           - Crisis situations
+           - Deadlines that must be met today
+           - Critical issues blocking others
+        
+        2. **Important & Not Urgent (Q2)** - Schedule time for these tasks
+           - Long-term planning
+           - Relationship building
+           - Professional development
+           - Strategic thinking
+        
+        3. **Not Important & Urgent (Q3)** - Try to delegate these tasks
+           - Some meetings
+           - Some emails and calls
+           - Interruptions that can be handled by others
+        
+        4. **Not Important & Not Urgent (Q4)** - Eliminate or minimize these tasks
+           - Time wasters
+           - Some emails
+           - Excessive social media
+           - Activities that don't align with goals
+        
+        The goal is to spend most of your time in Q2 (Important & Not Urgent), which reduces 
+        the number of urgent crises (Q1) and leads to better long-term outcomes.
+        """)
+        
+        st.subheader("Updating Your Priorities")
+        st.write("""
+        To change how items appear on the matrix:
+        1. Go to the Weekly Report form
+        2. Update the priority, status, or deadlines of your activities
+        3. Return to this page to see the updated matrix
+        """)
+
 def render_weekly_report_page():
     """Render the main weekly report form."""
     # Header
@@ -217,6 +286,9 @@ def render_weekly_report_page():
     # Pre-fill name from user profile if empty
     if not st.session_state.get("name") and st.session_state.get("user_info"):
         st.session_state.name = st.session_state.user_info.get("full_name", "")
+
+    # Template selector at the top
+    render_template_selector()
 
     # User Information Section
     render_user_info()
@@ -238,6 +310,14 @@ def render_weekly_report_page():
 
     # Optional Sections Content
     render_all_optional_sections()
+    
+    # Template creator
+    render_template_creator()
+    
+    # Export panel
+    st.subheader("Export Options")
+    if st.button("Show Export Options"):
+        render_export_panel()
 
     # Form Actions
     render_form_actions()
