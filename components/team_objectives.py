@@ -22,6 +22,10 @@ def render_team_objectives():
         year = now.year
         st.session_state.objective_period = f"Q{current_quarter} {year}"
     
+    # Initialize key results state if creating a new objective
+    if 'kr_count' not in st.session_state:
+        st.session_state.kr_count = 1
+    
     # Get user role for permissions
     user_role = st.session_state.get("user_info", {}).get("role", "team_member")
     can_manage = user_role in ["admin", "manager"]
@@ -63,7 +67,10 @@ def render_current_objectives():
                 periods.append(f"Q{q} {y}")
         
         # Find the index of the current period
-        current_period_idx = periods.index(st.session_state.objective_period)
+        try:
+            current_period_idx = periods.index(st.session_state.objective_period)
+        except ValueError:
+            current_period_idx = 0
         
         # Period selector
         selected_period = st.selectbox(
@@ -478,6 +485,7 @@ def render_manage_objectives():
         if st.button("Create New Objective", type="primary"):
             st.session_state.creating_objective = True
             st.session_state.editing_objective = None
+            st.session_state.kr_count = 1  # Initialize with one key result
             st.rerun()
     
     with col2:
@@ -559,6 +567,7 @@ def render_manage_objectives():
                     if st.button("Edit", key=f"edit_{obj.get('id')}"):
                         st.session_state.editing_objective = obj
                         st.session_state.creating_objective = False
+                        st.session_state.kr_count = len(obj.get('key_results', []))
                         st.rerun()
                 
                 with col2:
@@ -599,6 +608,21 @@ def render_objective_form(objective, period):
             'key_results': [{'description': '', 'progress': 0}]
         }
     
+    # Key results management outside of form
+    kr_count = st.session_state.kr_count
+    
+    # Add/remove key result buttons (outside the form)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("+ Add Key Result", key="add_kr_button"):
+            st.session_state.kr_count += 1
+            st.rerun()
+    
+    with col2:
+        if kr_count > 1 and st.button("- Remove Last Key Result", key="remove_kr_button"):
+            st.session_state.kr_count -= 1
+            st.rerun()
+    
     with st.form(key=form_key):
         # Basic info
         title = st.text_input(
@@ -628,10 +652,14 @@ def render_objective_form(objective, period):
             # Get user's teams
             teams = get_teams()
             
+            default_index = 0
+            if objective.get('team') in teams:
+                default_index = teams.index(objective.get('team'))
+            
             team = st.selectbox(
                 "Team",
                 options=teams,
-                index=teams.index(objective.get('team', teams[0])) if objective.get('team') in teams else 0,
+                index=default_index,
                 help="The team this objective belongs to"
             )
         
@@ -640,10 +668,17 @@ def render_objective_form(objective, period):
             # Get all users
             users = get_users()
             
+            # Create options for selectbox
+            user_ids = [user.get('id') for user in users]
+            
+            default_index = 0
+            if objective.get('owner_id') in user_ids:
+                default_index = user_ids.index(objective.get('owner_id'))
+            
             owner_id = st.selectbox(
                 "Owner",
-                options=[user.get('id') for user in users],
-                index=[user.get('id') for user in users].index(objective.get('owner_id', '')) if objective.get('owner_id') in [user.get('id') for user in users] else 0,
+                options=user_ids,
+                index=default_index,
                 format_func=lambda x: next((user.get('full_name') for user in users if user.get('id') == x), "Unknown"),
                 help="The person responsible for this objective"
             )
@@ -663,17 +698,25 @@ def render_objective_form(objective, period):
             help="Current status of this objective"
         )
         
-        # Key Results
+        # Key Results - now handled with a fixed count from session state
         st.subheader("Key Results")
         st.write("Define measurable outcomes that will indicate success.")
         
-        # Initialize key results if not present
-        key_results = objective.get('key_results', [{'description': '', 'progress': 0}])
+        # Get existing key results or initialize new ones
+        existing_key_results = objective.get('key_results', [])
         
-        # Track updated key results
+        # Make sure we have the right number based on kr_count
+        while len(existing_key_results) < kr_count:
+            existing_key_results.append({'description': '', 'progress': 0})
+        
+        # Limit to current kr_count
+        key_results = existing_key_results[:kr_count]
+        
+        # Render key result fields
         updated_key_results = []
-        
-        for i, kr in enumerate(key_results):
+        for i in range(kr_count):
+            kr = key_results[i] if i < len(key_results) else {'description': '', 'progress': 0}
+            
             with st.container():
                 st.write(f"**Key Result {i+1}**")
                 
@@ -709,20 +752,8 @@ def render_objective_form(objective, period):
                 
                 updated_key_results.append(updated_kr)
                 
-                # Option to remove this key result
-                if len(key_results) > 1 and st.button("Remove", key=f"remove_kr_{i}"):
-                    # Remove this key result and rerun
-                    key_results.pop(i)
-                    objective['key_results'] = key_results
-                    st.rerun()
-                
-                st.divider()
-        
-        # Add key result button
-        if st.button("+ Add Key Result"):
-            key_results.append({'description': '', 'progress': 0})
-            objective['key_results'] = key_results
-            st.rerun()
+                if i < kr_count - 1:  # Add divider between key results but not after the last one
+                    st.divider()
         
         # Submit button
         submit_label = "Update Objective" if objective.get('id') else "Create Objective"
