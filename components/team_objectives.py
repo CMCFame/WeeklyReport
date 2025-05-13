@@ -608,21 +608,21 @@ def render_objective_form(objective, period):
             'key_results': [{'description': '', 'progress': 0}]
         }
     
-    # Key results management outside of form
+    # Key results management controls OUTSIDE the form
     kr_count = st.session_state.kr_count
     
-    # Add/remove key result buttons (outside the form)
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("+ Add Key Result", key="add_kr_button"):
+        if st.button("+ Add Key Result", key="add_kr_outside_form"):
             st.session_state.kr_count += 1
             st.rerun()
     
     with col2:
-        if kr_count > 1 and st.button("- Remove Last Key Result", key="remove_kr_button"):
+        if kr_count > 1 and st.button("- Remove Last Key Result", key="remove_kr_outside_form"):
             st.session_state.kr_count -= 1
             st.rerun()
-    
+            
+    # Now create the form with no buttons inside except the submit button
     with st.form(key=form_key):
         # Basic info
         title = st.text_input(
@@ -698,7 +698,7 @@ def render_objective_form(objective, period):
             help="Current status of this objective"
         )
         
-        # Key Results - now handled with a fixed count from session state
+        # Key Results
         st.subheader("Key Results")
         st.write("Define measurable outcomes that will indicate success.")
         
@@ -755,7 +755,7 @@ def render_objective_form(objective, period):
                 if i < kr_count - 1:  # Add divider between key results but not after the last one
                     st.divider()
         
-        # Submit button
+        # Submit button (ONLY BUTTON INSIDE THE FORM)
         submit_label = "Update Objective" if objective.get('id') else "Create Objective"
         submitted = st.form_submit_button(submit_label, type="primary")
         
