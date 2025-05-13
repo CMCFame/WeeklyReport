@@ -163,6 +163,8 @@ def render_selected_page(page_name):
         render_goal_dashboard()
     elif page_name == "OKR Management":
         render_okr_management()
+    elif page_name == "Import Objectives":
+        render_objectives_import()
     
     # Team Management section
     elif page_name == "User Management":
