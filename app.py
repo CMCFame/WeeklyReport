@@ -41,6 +41,7 @@ from components.auth import (
 )
 from components.user_import import render_user_import
 from components.report_import import render_report_import
+from components.objectives_import import render_objectives_import
 from components.navigation import render_navigation, get_current_page
 from components.report_templates import render_report_templates
 from components.team_objectives import render_team_objectives
