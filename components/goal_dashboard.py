@@ -4,7 +4,6 @@
 import streamlit as st
 import pandas as pd
 import json
-import matplotlib.pyplot as plt
 import numpy as np
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -590,8 +589,9 @@ def render_objective_table(objectives):
     selected_obj = next((obj for obj in objectives if obj.get('id') == selected_obj_id), None)
     
     if selected_obj:
-        with st.expander("Objective Details", expanded=True):
-            render_objective_details(selected_obj)
+        # FIXED: Removed nested expander - use a subheader instead
+        st.subheader("Objective Details")
+        render_objective_details(selected_obj)
 
 def render_objective_details(objective):
     """Render detailed view of a single objective.
@@ -639,6 +639,7 @@ def render_objective_details(objective):
         
         # Show updates if available
         if 'updates' in kr and kr['updates']:
+            # Using a separate expander that's not nested
             with st.expander("View Updates"):
                 for update in kr['updates']:
                     st.write(f"**{update.get('date', '')}:** {update.get('previous', 0):.0f}% → {update.get('current', 0):.0f}%")
