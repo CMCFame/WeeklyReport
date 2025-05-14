@@ -1,4 +1,5 @@
-# components/navigation.py
+# components/navigation.py - Updated to include report analytics
+
 """Navigation component for the Weekly Report app."""
 
 import streamlit as st
@@ -39,13 +40,15 @@ def render_navigation():
     
     # Add role-specific pages
     if user_role == "admin":
+        sections["reporting"]["pages"].append("Report Analytics")  # Add new analytics page
         sections["team"]["pages"].insert(0, "User Management")
         sections["admin"]["pages"].extend(["Import Users", "Import Reports", "System Settings"])
-        sections["goals"]["pages"].append("Import Objectives")  # Add Import Objectives to admin
+        sections["goals"]["pages"].append("Import Objectives")
     elif user_role == "manager":
+        sections["reporting"]["pages"].append("Report Analytics")  # Add new analytics page
         sections["team"]["pages"].insert(0, "User Management")
         sections["admin"]["pages"].append("Import Reports")
-        sections["goals"]["pages"].append("Import Objectives")  # Add Import Objectives to manager
+        sections["goals"]["pages"].append("Import Objectives")
     
     # Render each section
     for section_key, section in sections.items():
@@ -59,7 +62,7 @@ def render_navigation():
             # Render pages in this section
             for page in section["pages"]:
                 # Skip pages that require higher permissions
-                if page in ["User Management", "Import Users", "Import Reports", "System Settings", "Import Objectives"] and user_role == "team_member":
+                if page in ["User Management", "Import Users", "Import Reports", "System Settings", "Import Objectives", "Report Analytics"] and user_role == "team_member":
                     continue
                     
                 # Select page button
@@ -79,7 +82,7 @@ def set_page(page_name):
     """Set the current page programmatically."""
     # Determine the section for this page
     for section_key, section in {
-        "reporting": ["Weekly Report", "Past Reports", "Report Templates"],
+        "reporting": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics"],
         "goals": ["Team Objectives", "Goal Dashboard", "OKR Management", "Import Objectives"],
         "team": ["User Management", "Team Structure", "1:1 Meetings"],
         "admin": ["User Profile", "Project Data", "Import Users", "Import Reports", "System Settings"]

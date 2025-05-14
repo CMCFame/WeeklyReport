@@ -1,4 +1,5 @@
-# components/__init__.py
+# components/__init__.py - Updated to include weekly report analytics
+
 """Component modules for the Weekly Report app."""
 
 # Import all components for easier access
@@ -43,3 +44,4 @@ from components.placeholder import (
 
 # Import dashboard components
 from components.goal_dashboard import render_goal_dashboard
+from components.weekly_report_analytics import render_weekly_report_analytics

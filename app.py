@@ -1,4 +1,5 @@
-# app.py
+# app.py - Updated to include weekly report analytics
+
 """
 Weekly Activity Report Application
 
@@ -46,6 +47,7 @@ from components.navigation import render_navigation, get_current_page
 from components.report_templates import render_report_templates
 from components.team_objectives import render_team_objectives
 from components.goal_dashboard import render_goal_dashboard
+from components.weekly_report_analytics import render_weekly_report_analytics
 from components.placeholder import (
     render_okr_management,
     render_team_structure,
@@ -155,6 +157,8 @@ def render_selected_page(page_name):
         render_past_reports()
     elif page_name == "Report Templates":
         render_report_templates()
+    elif page_name == "Report Analytics":
+        render_weekly_report_analytics()
     
     # Goals & Tracking section
     elif page_name == "Team Objectives":
