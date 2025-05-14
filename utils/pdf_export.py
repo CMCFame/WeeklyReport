@@ -56,7 +56,10 @@ class ReportPDF(FPDF):
         # Times 12
         self.set_font('DejaVu', '', 10)
         # Output justified text
-        self.multi_cell(0, 5, body)
+        if body is not None and isinstance(body, str):
+            self.multi_cell(0, 5, body)
+        else:
+            self.multi_cell(0, 5, "")  # Add empty text if body is invalid
         # Line break
         self.ln()
         
@@ -65,6 +68,8 @@ class ReportPDF(FPDF):
         # Arial 12
         self.set_font('DejaVu', 'B', 11)
         # Title
+        if title is None:
+            title = "Untitled"
         self.cell(0, 6, title, 'B', 1, 'L')
         # Line break
         self.ln(4)
@@ -76,6 +81,15 @@ class ReportPDF(FPDF):
             progress (int): Progress value (0-100)
             width (int): Width of the progress bar in mm
         """
+        # Ensure progress is a number
+        try:
+            progress = int(progress)
+        except (ValueError, TypeError):
+            progress = 0  # Default to 0 if conversion fails
+            
+        # Ensure progress is within valid range
+        progress = max(0, min(100, progress))
+        
         # Store current position
         x, y = self.get_x(), self.get_y()
         
@@ -119,6 +133,11 @@ class ReportPDF(FPDF):
             
         self.cell(30, 5, label)
         self.set_font('DejaVu', '', 10)
+        
+        # Ensure text is a string
+        if not isinstance(text, str):
+            text = str(text)
+            
         self.multi_cell(0, 5, text)
         
     def add_list_item(self, text, indent=0, bullet='•'):
@@ -132,6 +151,11 @@ class ReportPDF(FPDF):
         self.set_x(self.get_x() + indent)
         self.set_font('DejaVu', '', 10)
         self.cell(5, 5, bullet)
+        
+        # Ensure text is a string
+        if not isinstance(text, str):
+            text = str(text)
+            
         self.multi_cell(0, 5, text)
 
 def ensure_font_directory():
@@ -139,35 +163,23 @@ def ensure_font_directory():
     font_dir = Path("utils/fonts")
     font_dir.mkdir(parents=True, exist_ok=True)
     
-    # Font URLs - these are direct links to DejaVu font files
-    font_urls = {
-        "DejaVuSansCondensed.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed.ttf",
-        "DejaVuSansCondensed-Bold.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed-Bold.ttf",
-        "DejaVuSansCondensed-Oblique.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed-Oblique.ttf"
-    }
+    # Create empty placeholder font files if they don't exist
+    font_files = [
+        "DejaVuSansCondensed.ttf",
+        "DejaVuSansCondensed-Bold.ttf", 
+        "DejaVuSansCondensed-Oblique.ttf"
+    ]
     
-    # Check if fonts exist and download if needed
-    import requests
-    
-    for font_file, url in font_urls.items():
+    for font_file in font_files:
         font_path = font_dir / font_file
         if not font_path.exists():
             try:
-                # Download the font
-                response = requests.get(url)
-                response.raise_for_status()  # Raise an exception for 4XX/5XX responses
-                
-                # Save to file
+                # Create an empty file as placeholder
                 with open(font_path, 'wb') as f:
-                    f.write(response.content)
-                
-                st.success(f"Downloaded font: {font_file}")
+                    f.write(b'')  # Write empty bytes
+                st.warning(f"Created placeholder font file: {font_file}")
             except Exception as e:
-                st.warning(f"Could not download font {font_file}: {str(e)}")
-                
-                # Create an empty file as fallback
-                with open(font_path, 'wb') as f:
-                    pass  # Create empty file
+                st.warning(f"Could not create font file {font_file}: {str(e)}")
 
 def export_report_to_pdf(report_data):
     """Export a report to PDF.
@@ -179,6 +191,10 @@ def export_report_to_pdf(report_data):
         str: Path to the generated PDF file
     """
     try:
+        # Ensure report_data is a dictionary
+        if not isinstance(report_data, dict):
+            report_data = {}
+            
         # Create a temporary directory to store the PDF
         temp_dir = tempfile.mkdtemp()
         file_path = os.path.join(temp_dir, f"report_{report_data.get('id', 'unknown')}.pdf")
@@ -203,7 +219,7 @@ def export_report_to_pdf(report_data):
         
         # Safely extract timestamp - fix potential index error
         timestamp = report_data.get('timestamp', '')
-        if timestamp and len(timestamp) >= 10:
+        if timestamp and isinstance(timestamp, str) and len(timestamp) >= 10:
             pdf.cell(0, 10, f"Date: {timestamp[:10]}", 0, 1)
         else:
             pdf.cell(0, 10, f"Date: Unknown", 0, 1)
@@ -219,7 +235,8 @@ def export_report_to_pdf(report_data):
                 if not isinstance(activity, dict):  # Skip if not a dictionary
                     continue
                     
-                pdf.section_title(activity.get('description', 'No description'))
+                activity_description = activity.get('description', 'No description')
+                pdf.section_title(activity_description)
                 
                 # Project and milestone
                 project_text = f"{activity.get('project', 'No project')}"
@@ -235,7 +252,11 @@ def export_report_to_pdf(report_data):
                 
                 # Progress bar
                 pdf.cell(0, 5, "Progress:", 0, 1)
-                pdf.add_progress_bar(activity.get('progress', 0))
+                try:
+                    progress = int(activity.get('progress', 0))
+                except (ValueError, TypeError):
+                    progress = 0  # Default to 0 if conversion fails
+                pdf.add_progress_bar(progress)
                 
                 # Customer and billable
                 if activity.get('customer'):
@@ -254,7 +275,8 @@ def export_report_to_pdf(report_data):
                 if not isinstance(activity, dict):  # Skip if not a dictionary
                     continue
                     
-                pdf.section_title(activity.get('description', 'No description'))
+                activity_description = activity.get('description', 'No description')
+                pdf.section_title(activity_description)
                 
                 # Project and milestone
                 project_text = f"{activity.get('project', 'No project')}"
@@ -288,7 +310,7 @@ def export_report_to_pdf(report_data):
                     except:
                         accomplishment_text = accomplishment
                         
-                    if accomplishment_text:  # Skip empty strings
+                    if accomplishment_text and accomplishment_text.strip().lower() != "nan":  # Skip empty strings or "nan"
                         pdf.add_list_item(accomplishment_text)
             
             pdf.ln(5)
@@ -319,7 +341,7 @@ def export_report_to_pdf(report_data):
                         except:
                             followup_text = followup
                             
-                        if followup_text:  # Skip empty strings
+                        if followup_text and followup_text.strip().lower() != "nan":  # Skip empty strings or "nan"
                             pdf.add_list_item(followup_text)
                 
                 pdf.ln(5)
@@ -342,7 +364,7 @@ def export_report_to_pdf(report_data):
                         except:
                             nextstep_text = nextstep
                             
-                        if nextstep_text:  # Skip empty strings
+                        if nextstep_text and nextstep_text.strip().lower() != "nan":  # Skip empty strings or "nan"
                             pdf.add_list_item(nextstep_text)
                 
                 pdf.ln(5)
@@ -358,10 +380,13 @@ def export_report_to_pdf(report_data):
         
         for section in optional_sections:
             key = section['key']
-            if key in report_data and report_data[key]:
-                pdf.chapter_title(section['title'])
-                pdf.chapter_body(report_data[key])
-                pdf.ln(5)
+            if key in report_data:
+                # Check if the value is valid
+                value = report_data[key]
+                if value and isinstance(value, str) and value.strip().lower() != 'nan':
+                    pdf.chapter_title(section['title'])
+                    pdf.chapter_body(value)
+                    pdf.ln(5)
         
         # Output the PDF to a file
         pdf.output(file_path, 'F')
@@ -382,6 +407,10 @@ def export_objective_to_pdf(objective_data):
         str: Path to the generated PDF file
     """
     try:
+        # Ensure objective_data is a dictionary
+        if not isinstance(objective_data, dict):
+            objective_data = {}
+            
         # Create a temporary directory to store the PDF
         temp_dir = tempfile.mkdtemp()
         file_path = os.path.join(temp_dir, f"objective_{objective_data.get('id', 'unknown')}.pdf")
@@ -413,7 +442,7 @@ def export_objective_to_pdf(objective_data):
         pdf.ln(5)
         
         # Description
-        if 'description' in objective_data and objective_data['description']:
+        if 'description' in objective_data and objective_data['description'] and isinstance(objective_data['description'], str):
             pdf.chapter_title("Description")
             pdf.chapter_body(objective_data['description'])
             pdf.ln(5)
@@ -428,10 +457,14 @@ def export_objective_to_pdf(objective_data):
                     continue
                     
                 # Get progress
-                progress = kr.get('progress', 0)
+                try:
+                    progress = int(kr.get('progress', 0))
+                except (ValueError, TypeError):
+                    progress = 0  # Default to 0 if conversion fails
                 
                 # Key result title and progress
-                pdf.section_title(f"KR{i+1}: {kr.get('description', 'No description')}")
+                kr_description = kr.get('description', 'No description')
+                pdf.section_title(f"KR{i+1}: {kr_description}")
                 pdf.cell(30, 5, "Progress:")
                 pdf.add_progress_bar(progress)
                 
@@ -448,9 +481,14 @@ def export_objective_to_pdf(objective_data):
                             continue
                             
                         # Format update info
-                        update_text = f"{update.get('date', '')}: {update.get('previous', 0)}% → {update.get('current', 0)}%"
-                        if update.get('note'):
-                            update_text += f"\n{update.get('note')}"
+                        update_date = update.get('date', '')
+                        previous = update.get('previous', 0)
+                        current = update.get('current', 0)
+                        note = update.get('note', '')
+                        
+                        update_text = f"{update_date}: {previous}% → {current}%"
+                        if note:
+                            update_text += f"\n{note}"
                         
                         pdf.add_list_item(update_text)
                     
@@ -459,7 +497,7 @@ def export_objective_to_pdf(objective_data):
         # Last updated
         if 'last_updated' in objective_data:
             last_updated = objective_data['last_updated']
-            if last_updated and len(last_updated) >= 10:
+            if last_updated and isinstance(last_updated, str) and len(last_updated) >= 10:
                 pdf.set_font('DejaVu', 'I', 10)
                 pdf.cell(0, 10, f"Last Updated: {last_updated[:10]}", 0, 1)
         
