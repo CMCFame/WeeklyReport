@@ -40,12 +40,10 @@ def render_navigation():
     
     # Add role-specific pages
     if user_role == "admin":
-        sections["reporting"]["pages"].append("Report Analytics")
         sections["team"]["pages"].insert(0, "User Management")
         sections["admin"]["pages"].extend(["Import Users", "Import Reports", "System Settings"])
         sections["goals"]["pages"].append("Import Objectives")
     elif user_role == "manager":
-        sections["reporting"]["pages"].append("Report Analytics")
         sections["team"]["pages"].insert(0, "User Management")
         sections["admin"]["pages"].append("Import Reports")
         sections["goals"]["pages"].append("Import Objectives")
@@ -60,16 +58,19 @@ def render_navigation():
         expanded = st.session_state.nav_section == section_key
         with st.sidebar.expander(f"{section['icon']} {section['title']}", expanded=expanded):
             # Render pages in this section
-            for page in section["pages"]:
+            for page_idx, page in enumerate(section["pages"]):
                 # Skip pages that require higher permissions
                 if page in ["User Management", "Import Users", "Import Reports", "System Settings", "Import Objectives"] and user_role == "team_member":
                     continue
                     
-                # Select page button
+                # Select page button - use a unique key combining section, page and index
                 is_active = st.session_state.nav_page == page
                 label = f"**{page}**" if is_active else page
                 
-                if st.button(label, key=f"nav_{page}", use_container_width=True):
+                # Generate unique key using section, page name and index for absolute uniqueness
+                unique_key = f"nav_{section_key}_{page_idx}_{page.replace(' ', '_')}"
+                
+                if st.button(label, key=unique_key, use_container_width=True):
                     st.session_state.nav_section = section_key
                     st.session_state.nav_page = page
                     st.rerun()
