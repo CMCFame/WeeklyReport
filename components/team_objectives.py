@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import pandas as pd
 import os
+from components.pdf_export import render_objective_export_button, render_batch_export_objectives
 
 def render_team_objectives():
     """Render the team objectives management page."""
@@ -215,7 +216,7 @@ def render_objective_card(objective):
                         st.markdown(f"*Last update: {latest_update.get('date', '')} - {latest_update.get('note', '')}*")
         
         # Owner and status
-        col1, col2 = st.columns(2)
+        col1, col2, col3 = st.columns(3)
         
         with col1:
             owner = objective.get('owner_name', 'Unassigned')
@@ -224,6 +225,10 @@ def render_objective_card(objective):
         with col2:
             status = objective.get('status', 'In Progress')
             st.write(f"**Status:** {status}")
+        
+        with col3:
+            # Add PDF export button
+            render_objective_export_button(objective, button_text="Export PDF", key_suffix=objective.get('id', ''))
         
         # Add update button
         if st.button("Update Progress", key=f"update_{objective.get('id')}"):
@@ -538,6 +543,10 @@ def render_manage_objectives():
                     st.success(f"Copied {copied_count} objectives from {source_period} to {st.session_state.objective_period}.")
                     st.rerun()
     
+    # Add batch export functionality
+    if objectives:
+        render_batch_export_objectives(objectives)
+    
     # Display existing objectives in a management table
     if objectives:
         st.subheader(f"Objectives for {st.session_state.objective_period}")
@@ -561,7 +570,7 @@ def render_manage_objectives():
                     st.write(f"{i+1}. {kr.get('description', 'No description')} - {kr.get('progress', 0):.0f}%")
                 
                 # Action buttons
-                col1, col2 = st.columns(2)
+                col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     if st.button("Edit", key=f"edit_{obj.get('id')}"):
@@ -571,6 +580,10 @@ def render_manage_objectives():
                         st.rerun()
                 
                 with col2:
+                    # Add PDF export button
+                    render_objective_export_button(obj, button_text="Export PDF", key_suffix=f"manage_{obj.get('id', '')}")
+                
+                with col3:
                     if st.button("Delete", key=f"delete_{obj.get('id')}"):
                         if delete_objective(obj.get('id')):
                             st.success("Objective deleted successfully!")

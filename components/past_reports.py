@@ -1,8 +1,9 @@
-# components/past_reports.py
+# components/past_reports.py - Updated with PDF export
 """Past reports component for the Weekly Report app."""
 
 import streamlit as st
 from utils import file_ops, session
+from components.pdf_export import render_report_export_button, render_batch_export_reports
 
 def render_past_reports():
     """Render the past reports view.
@@ -45,6 +46,9 @@ def render_past_reports():
         if not filtered_reports:
             st.info("No reports match your filter criteria.")
             return
+        
+        # Add batch export option
+        render_batch_export_reports(filtered_reports)
             
         # Display reports
         st.subheader(f"Found {len(filtered_reports)} Report(s)")
@@ -134,7 +138,7 @@ def render_report_details(report, index):
         render_optional_report_sections(report)
         
         # Action buttons
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
         
         with col1:
             if st.button('Use as Template', key=f"template_{index}", use_container_width=True):
@@ -161,10 +165,14 @@ def render_report_details(report, index):
                             st.text(line)
         
         with col2:
-            if st.button('Export as PDF', key=f"export_{index}", use_container_width=True):
-                file_ops.export_report_as_pdf(report)
+            # PDF export button
+            render_report_export_button(report, button_text="Export as PDF", key_suffix=str(index))
         
         with col3:
+            # Do nothing, keep for layout
+            pass
+        
+        with col4:
             if st.button('Delete Report', key=f"delete_{index}", use_container_width=True):
                 # Confirm delete dialog
                 st.warning("Are you sure you want to delete this report?")

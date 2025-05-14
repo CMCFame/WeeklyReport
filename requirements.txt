@@ -1,7 +1,8 @@
+# Updated requirements.txt
 streamlit>=1.25.0
 pandas>=1.5.0
 fpdf>=1.7.2
+matplotlib>=3.5.0
 plotly>=5.10.0
 numpy>=1.20.0
-# Remove matplotlib if you decide to remove the import as suggested below
-matplotlib>=3.5.0
+requests>=2.26.0
