@@ -9,21 +9,19 @@ from datetime import datetime
 from pathlib import Path
 
 class ReportPDF(FPDF):
-    """Custom PDF class for report formatting."""
+    """Custom PDF class for report formatting that uses standard fonts."""
     
     def __init__(self, orientation='P', unit='mm', format='A4'):
         super().__init__(orientation, unit, format)
         self.set_auto_page_break(auto=True, margin=15)
-        self.add_font('DejaVu', '', 'utils/fonts/DejaVuSansCondensed.ttf', uni=True)
-        self.add_font('DejaVu', 'B', 'utils/fonts/DejaVuSansCondensed-Bold.ttf', uni=True)
-        self.add_font('DejaVu', 'I', 'utils/fonts/DejaVuSansCondensed-Oblique.ttf', uni=True)
+        # Use standard fonts instead of DejaVu
+        self.set_font('Arial', '', 10)
         
     def header(self):
         """Add header to pages."""
         # Logo
         # self.image('logo.png', 10, 8, 33)
-        # Arial bold 15
-        self.set_font('DejaVu', 'B', 15)
+        self.set_font('Arial', 'B', 15)
         # Move to the right
         self.cell(80)
         # Title
@@ -35,15 +33,13 @@ class ReportPDF(FPDF):
         """Add footer to pages."""
         # Position at 1.5 cm from bottom
         self.set_y(-15)
-        # Arial italic 8
-        self.set_font('DejaVu', 'I', 8)
+        self.set_font('Arial', 'I', 8)
         # Page number
         self.cell(0, 10, 'Page ' + str(self.page_no()) + '/{nb}', 0, 0, 'C')
         
     def chapter_title(self, title):
         """Add a chapter title."""
-        # Arial 12
-        self.set_font('DejaVu', 'B', 12)
+        self.set_font('Arial', 'B', 12)
         # Background color
         self.set_fill_color(200, 220, 255)
         # Title
@@ -53,8 +49,7 @@ class ReportPDF(FPDF):
         
     def chapter_body(self, body):
         """Add chapter body."""
-        # Times 12
-        self.set_font('DejaVu', '', 10)
+        self.set_font('Arial', '', 10)
         # Output justified text
         if body is not None and isinstance(body, str):
             self.multi_cell(0, 5, body)
@@ -65,8 +60,7 @@ class ReportPDF(FPDF):
         
     def section_title(self, title):
         """Add a section title."""
-        # Arial 12
-        self.set_font('DejaVu', 'B', 11)
+        self.set_font('Arial', 'B', 11)
         # Title
         if title is None:
             title = "Untitled"
@@ -112,7 +106,7 @@ class ReportPDF(FPDF):
         
         # Add percentage text
         self.set_xy(x + width + 2, y)
-        self.set_font('DejaVu', '', 8)
+        self.set_font('Arial', '', 8)
         self.cell(10, 5, f"{progress}%")
         
         # Reset position below the progress bar
@@ -127,12 +121,12 @@ class ReportPDF(FPDF):
             bold_label (bool): Whether to make the label bold
         """
         if bold_label:
-            self.set_font('DejaVu', 'B', 10)
+            self.set_font('Arial', 'B', 10)
         else:
-            self.set_font('DejaVu', '', 10)
+            self.set_font('Arial', '', 10)
             
         self.cell(30, 5, label)
-        self.set_font('DejaVu', '', 10)
+        self.set_font('Arial', '', 10)
         
         # Ensure text is a string
         if not isinstance(text, str):
@@ -149,7 +143,7 @@ class ReportPDF(FPDF):
             bullet (str): Bullet character to use
         """
         self.set_x(self.get_x() + indent)
-        self.set_font('DejaVu', '', 10)
+        self.set_font('Arial', '', 10)
         self.cell(5, 5, bullet)
         
         # Ensure text is a string
@@ -157,29 +151,6 @@ class ReportPDF(FPDF):
             text = str(text)
             
         self.multi_cell(0, 5, text)
-
-def ensure_font_directory():
-    """Ensure the fonts directory exists and download DejaVu fonts if needed."""
-    font_dir = Path("utils/fonts")
-    font_dir.mkdir(parents=True, exist_ok=True)
-    
-    # Create empty placeholder font files if they don't exist
-    font_files = [
-        "DejaVuSansCondensed.ttf",
-        "DejaVuSansCondensed-Bold.ttf", 
-        "DejaVuSansCondensed-Oblique.ttf"
-    ]
-    
-    for font_file in font_files:
-        font_path = font_dir / font_file
-        if not font_path.exists():
-            try:
-                # Create an empty file as placeholder
-                with open(font_path, 'wb') as f:
-                    f.write(b'')  # Write empty bytes
-                st.warning(f"Created placeholder font file: {font_file}")
-            except Exception as e:
-                st.warning(f"Could not create font file {font_file}: {str(e)}")
 
 def export_report_to_pdf(report_data):
     """Export a report to PDF.
@@ -199,21 +170,18 @@ def export_report_to_pdf(report_data):
         temp_dir = tempfile.mkdtemp()
         file_path = os.path.join(temp_dir, f"report_{report_data.get('id', 'unknown')}.pdf")
         
-        # Ensure font directory exists
-        ensure_font_directory()
-        
         # Initialize PDF instance
         pdf = ReportPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
         
         # Report header
-        pdf.set_font('DejaVu', 'B', 16)
+        pdf.set_font('Arial', 'B', 16)
         pdf.cell(0, 10, "Weekly Activity Report", 0, 1, 'C')
         pdf.ln(5)
         
         # Report metadata
-        pdf.set_font('DejaVu', '', 12)
+        pdf.set_font('Arial', '', 12)
         pdf.cell(0, 10, f"Name: {report_data.get('name', 'Anonymous')}", 0, 1)
         pdf.cell(0, 10, f"Week: {report_data.get('reporting_week', 'Unknown')}", 0, 1)
         
@@ -415,22 +383,19 @@ def export_objective_to_pdf(objective_data):
         temp_dir = tempfile.mkdtemp()
         file_path = os.path.join(temp_dir, f"objective_{objective_data.get('id', 'unknown')}.pdf")
         
-        # Ensure font directory exists
-        ensure_font_directory()
-        
         # Initialize PDF instance
         pdf = ReportPDF()
         pdf.alias_nb_pages()
         pdf.add_page()
         
         # Objective header
-        pdf.set_font('DejaVu', 'B', 16)
+        pdf.set_font('Arial', 'B', 16)
         title = objective_data.get('title', 'Untitled Objective')
         pdf.cell(0, 10, title, 0, 1, 'C')
         pdf.ln(5)
         
         # Objective metadata
-        pdf.set_font('DejaVu', '', 12)
+        pdf.set_font('Arial', '', 12)
         pdf.cell(0, 10, f"Level: {objective_data.get('level', 'unknown').capitalize()}", 0, 1)
         
         if objective_data.get('level') == 'team':
@@ -456,56 +421,4 @@ def export_objective_to_pdf(objective_data):
                 if not isinstance(kr, dict):  # Skip if not a dictionary
                     continue
                     
-                # Get progress
-                try:
-                    progress = int(kr.get('progress', 0))
-                except (ValueError, TypeError):
-                    progress = 0  # Default to 0 if conversion fails
-                
-                # Key result title and progress
-                kr_description = kr.get('description', 'No description')
-                pdf.section_title(f"KR{i+1}: {kr_description}")
-                pdf.cell(30, 5, "Progress:")
-                pdf.add_progress_bar(progress)
-                
-                # Updates
-                updates = kr.get('updates', [])
-                if updates and isinstance(updates, list) and len(updates) > 0:
-                    pdf.section_title("Recent Updates")
-                    
-                    # Get last 3 updates or fewer if there aren't 3
-                    recent_updates = updates[-min(3, len(updates)):]
-                    
-                    for update in recent_updates:
-                        if not isinstance(update, dict):  # Skip if not a dictionary
-                            continue
-                            
-                        # Format update info
-                        update_date = update.get('date', '')
-                        previous = update.get('previous', 0)
-                        current = update.get('current', 0)
-                        note = update.get('note', '')
-                        
-                        update_text = f"{update_date}: {previous}% → {current}%"
-                        if note:
-                            update_text += f"\n{note}"
-                        
-                        pdf.add_list_item(update_text)
-                    
-                    pdf.ln(5)
-        
-        # Last updated
-        if 'last_updated' in objective_data:
-            last_updated = objective_data['last_updated']
-            if last_updated and isinstance(last_updated, str) and len(last_updated) >= 10:
-                pdf.set_font('DejaVu', 'I', 10)
-                pdf.cell(0, 10, f"Last Updated: {last_updated[:10]}", 0, 1)
-        
-        # Output the PDF to a file
-        pdf.output(file_path, 'F')
-        
-        return file_path
-    except Exception as e:
-        # Log the detailed error for debugging
-        st.error(f"Error generating objective PDF: {str(e)}")
-        raise e
+                # Get
