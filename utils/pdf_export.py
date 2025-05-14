@@ -141,9 +141,9 @@ def ensure_font_directory():
     
     # Font URLs - these are direct links to DejaVu font files
     font_urls = {
-        "DejaVuSansCondensed.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed.ttf",
-        "DejaVuSansCondensed-Bold.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed-Bold.ttf",
-        "DejaVuSansCondensed-Oblique.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed-Oblique.ttf"
+        "DejaVuSansCondensed.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed.ttf",
+        "DejaVuSansCondensed-Bold.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed-Bold.ttf",
+        "DejaVuSansCondensed-Oblique.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed-Oblique.ttf"
     }
     
     # Check if fonts exist and download if needed
@@ -387,4 +387,4 @@ def export_objective_to_pdf(objective_data):
     # Output the PDF to a file
     pdf.output(file_path, 'F')
     
-    return file_path
+    return file_path    
