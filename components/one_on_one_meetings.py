@@ -1,10 +1,12 @@
-# components/one_on_one_meetings.py
+# components/one_on_one_meetings.py (with fixes for duplicate keys)
+
 """1:1 Meeting component for the Weekly Report app."""
 
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import json
+import uuid  # Added for generating unique IDs
 from utils.meeting_utils import (
     load_meeting_templates, save_meeting_templates, 
     add_meeting_template, update_meeting_template, delete_meeting_template,
@@ -36,6 +38,15 @@ def render_one_on_one_meetings():
     if current_user_id:
         team_member = get_member_by_user_id(current_user_id)
     
+    # Generate unique IDs for each tab to avoid key conflicts
+    if "meeting_tab_ids" not in st.session_state:
+        st.session_state.meeting_tab_ids = {
+            "upcoming": str(uuid.uuid4()),
+            "all": str(uuid.uuid4()),
+            "action_items": str(uuid.uuid4()),
+            "templates": str(uuid.uuid4())
+        }
+    
     # Tabs for different views
     tabs = ["Upcoming Meetings", "All Meetings", "Action Items"]
     
@@ -45,19 +56,22 @@ def render_one_on_one_meetings():
     tab1, tab2, tab3, *extra_tabs = st.tabs(tabs)
     
     with tab1:
-        render_upcoming_meetings(current_user_id, current_user_name, team_member, can_manage)
+        render_upcoming_meetings(current_user_id, current_user_name, team_member, can_manage, 
+                                 tab_id=st.session_state.meeting_tab_ids["upcoming"])
     
     with tab2:
-        render_all_meetings(current_user_id, current_user_name, team_member, can_manage)
+        render_all_meetings(current_user_id, current_user_name, team_member, can_manage,
+                            tab_id=st.session_state.meeting_tab_ids["all"])
     
     with tab3:
-        render_action_items(current_user_id, current_user_name, team_member, can_manage)
+        render_action_items(current_user_id, current_user_name, team_member, can_manage,
+                            tab_id=st.session_state.meeting_tab_ids["action_items"])
     
     if can_manage and len(extra_tabs) > 0:
         with extra_tabs[0]:
-            render_meeting_templates()
+            render_meeting_templates(tab_id=st.session_state.meeting_tab_ids["templates"])
 
-def render_upcoming_meetings(current_user_id, current_user_name, team_member, can_manage):
+def render_upcoming_meetings(current_user_id, current_user_name, team_member, can_manage, tab_id):
     """Render the upcoming meetings view.
     
     Args:
@@ -65,6 +79,7 @@ def render_upcoming_meetings(current_user_id, current_user_name, team_member, ca
         current_user_name (str): Current user name
         team_member (dict): Team member data
         can_manage (bool): Whether user has management permissions
+        tab_id (str): Unique ID for this tab to prefix keys
     """
     st.subheader("Upcoming Meetings")
     
@@ -73,7 +88,7 @@ def render_upcoming_meetings(current_user_id, current_user_name, team_member, ca
     
     # Create a new meeting
     with st.expander("Schedule a New 1:1 Meeting", expanded=False):
-        render_new_meeting_form(current_user_id, current_user_name, team_member, can_manage)
+        render_new_meeting_form(current_user_id, current_user_name, team_member, can_manage, form_id=f"{tab_id}_new_meeting")
     
     # Display upcoming meetings
     if upcoming_meetings:
@@ -104,25 +119,23 @@ def render_upcoming_meetings(current_user_id, current_user_name, team_member, ca
         if this_week:
             st.write("### This Week")
             for i, meeting in enumerate(this_week):
-                render_meeting_card(meeting, current_user_id, can_manage, i)
+                render_meeting_card(meeting, current_user_id, can_manage, f"{tab_id}_this_week_{i}")
         
         # Next week
         if next_week:
             st.write("### Next Week")
             for i, meeting in enumerate(next_week):
-                # Use offset for indices to ensure uniqueness
-                render_meeting_card(meeting, current_user_id, can_manage, i + 100)
+                render_meeting_card(meeting, current_user_id, can_manage, f"{tab_id}_next_week_{i}")
         
         # Later
         if later:
             st.write("### Later")
             for i, meeting in enumerate(later):
-                # Use offset for indices to ensure uniqueness
-                render_meeting_card(meeting, current_user_id, can_manage, i + 200)
+                render_meeting_card(meeting, current_user_id, can_manage, f"{tab_id}_later_{i}")
     else:
         st.info("No upcoming meetings scheduled. Use the form above to schedule a new meeting.")
 
-def render_all_meetings(current_user_id, current_user_name, team_member, can_manage):
+def render_all_meetings(current_user_id, current_user_name, team_member, can_manage, tab_id):
     """Render all meetings view.
     
     Args:
@@ -130,6 +143,7 @@ def render_all_meetings(current_user_id, current_user_name, team_member, can_man
         current_user_name (str): Current user name
         team_member (dict): Team member data
         can_manage (bool): Whether user has management permissions
+        tab_id (str): Unique ID for this tab to prefix keys
     """
     st.subheader("All Meetings")
     
@@ -138,7 +152,7 @@ def render_all_meetings(current_user_id, current_user_name, team_member, can_man
     
     # Filter options
     status_options = ["All", "Scheduled", "In Progress", "Completed", "Cancelled"]
-    selected_status = st.selectbox("Filter by Status", status_options)
+    selected_status = st.selectbox("Filter by Status", status_options, key=f"{tab_id}_status_filter")
     
     # Apply filters
     if selected_status != "All":
@@ -148,7 +162,7 @@ def render_all_meetings(current_user_id, current_user_name, team_member, can_man
     
     # Sort options
     sort_options = ["Date (Latest First)", "Date (Oldest First)", "Team Member", "Status"]
-    selected_sort = st.selectbox("Sort by", sort_options)
+    selected_sort = st.selectbox("Sort by", sort_options, key=f"{tab_id}_sort_option")
     
     # Apply sorting
     if selected_sort == "Date (Latest First)":
@@ -169,12 +183,11 @@ def render_all_meetings(current_user_id, current_user_name, team_member, can_man
         st.write(f"Showing {len(sorted_meetings)} meetings:")
         
         for i, meeting in enumerate(sorted_meetings):
-            # Use an offset (1000) to ensure keys don't overlap with upcoming meetings
-            render_meeting_card(meeting, current_user_id, can_manage, i + 1000)
+            render_meeting_card(meeting, current_user_id, can_manage, f"{tab_id}_meeting_{i}")
     else:
         st.info("No meetings match the selected filters.")
 
-def render_action_items(current_user_id, current_user_name, team_member, can_manage):
+def render_action_items(current_user_id, current_user_name, team_member, can_manage, tab_id):
     """Render action items view.
     
     Args:
@@ -182,6 +195,7 @@ def render_action_items(current_user_id, current_user_name, team_member, can_man
         current_user_name (str): Current user name
         team_member (dict): Team member data
         can_manage (bool): Whether user has management permissions
+        tab_id (str): Unique ID for this tab to prefix keys
     """
     st.subheader("Action Items")
     
@@ -190,7 +204,7 @@ def render_action_items(current_user_id, current_user_name, team_member, can_man
     
     # Filter options
     status_options = ["All", "Pending", "In Progress", "Completed"]
-    selected_status = st.selectbox("Filter by Status", status_options, key="action_status_filter")
+    selected_status = st.selectbox("Filter by Status", status_options, key=f"{tab_id}_action_status_filter")
     
     # Apply filters
     if selected_status != "All":
@@ -211,31 +225,29 @@ def render_action_items(current_user_id, current_user_name, team_member, can_man
         # Pending items
         if pending and (selected_status == "All" or selected_status == "Pending"):
             with st.expander("Pending", expanded=True):
-                render_action_item_list(pending, current_user_id, 1000)
+                render_action_item_list(pending, current_user_id, f"{tab_id}_pending")
         
         # In Progress items
         if in_progress and (selected_status == "All" or selected_status == "In Progress"):
             with st.expander("In Progress", expanded=True):
-                render_action_item_list(in_progress, current_user_id, 2000)
+                render_action_item_list(in_progress, current_user_id, f"{tab_id}_in_progress")
         
         # Completed items
         if completed and (selected_status == "All" or selected_status == "Completed"):
             with st.expander("Completed", expanded=False):
-                render_action_item_list(completed, current_user_id, 3000)
+                render_action_item_list(completed, current_user_id, f"{tab_id}_completed")
         
         # Other items
         if other and selected_status == "All":
             with st.expander("Other", expanded=False):
-                render_action_item_list(other, current_user_id, 4000)
-        
-        # Rest of the function stays the same...
+                render_action_item_list(other, current_user_id, f"{tab_id}_other")
         
         # Add to weekly report button
         st.divider()
         st.write("### Add Action Items to Weekly Report")
         st.write("You can add pending action items to your weekly report as next steps.")
         
-        if st.button("Add Pending Action Items to Weekly Report"):
+        if st.button("Add Pending Action Items to Weekly Report", key=f"{tab_id}_add_to_report_btn"):
             # Get pending items assigned to the current user
             my_pending_items = [
                 item for item in pending 
@@ -271,8 +283,12 @@ def render_action_items(current_user_id, current_user_name, team_member, can_man
     else:
         st.info("No action items match the selected filters.")
 
-def render_meeting_templates():
-    """Render the meeting templates management view."""
+def render_meeting_templates(tab_id):
+    """Render the meeting templates management view.
+    
+    Args:
+        tab_id (str): Unique ID for this tab to prefix keys
+    """
     st.subheader("Meeting Templates")
     
     # Load existing templates
@@ -280,7 +296,7 @@ def render_meeting_templates():
     
     # Create new template form
     with st.expander("Create New Template", expanded=False):
-        with st.form("new_template_form"):
+        with st.form(f"{tab_id}_new_template_form"):
             template_name = st.text_input("Template Name")
             template_description = st.text_area("Description")
             
@@ -301,9 +317,9 @@ def render_meeting_templates():
             for i, section in enumerate(st.session_state.template_sections):
                 col1, col2 = st.columns([1, 3])
                 with col1:
-                    section_title = st.text_input(f"Title {i+1}", value=section["title"], key=f"section_title_{i}")
+                    section_title = st.text_input(f"Title {i+1}", value=section["title"], key=f"{tab_id}_section_title_{i}")
                 with col2:
-                    section_desc = st.text_input(f"Description {i+1}", value=section["description"], key=f"section_desc_{i}")
+                    section_desc = st.text_input(f"Description {i+1}", value=section["description"], key=f"{tab_id}_section_desc_{i}")
                 
                 # Update session state
                 st.session_state.template_sections[i] = {"title": section_title, "description": section_desc}
@@ -330,11 +346,11 @@ def render_meeting_templates():
     # Button to add/remove sections (outside the form)
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("+ Add Section"):
+        if st.button("+ Add Section", key=f"{tab_id}_add_section_btn"):
             st.session_state.template_sections.append({"title": "", "description": ""})
             st.rerun()
     with col2:
-        if st.button("- Remove Last Section") and len(st.session_state.template_sections) > 1:
+        if st.button("- Remove Last Section", key=f"{tab_id}_remove_section_btn") and len(st.session_state.template_sections) > 1:
             st.session_state.template_sections.pop()
             st.rerun()
     
@@ -357,7 +373,7 @@ def render_meeting_templates():
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    if st.button("Edit Template", key=f"edit_{i}"):
+                    if st.button("Edit Template", key=f"{tab_id}_edit_{i}"):
                         # Load template into session state for editing
                         st.session_state.edit_template_id = template.get("id")
                         st.session_state.edit_template_name = template.get("name")
@@ -366,7 +382,7 @@ def render_meeting_templates():
                         st.rerun()
                 
                 with col2:
-                    if st.button("Delete Template", key=f"delete_{i}"):
+                    if st.button("Delete Template", key=f"{tab_id}_delete_{i}"):
                         if delete_meeting_template(template.get("id")):
                             st.success(f"Template '{template.get('name')}' deleted successfully!")
                             st.rerun()
@@ -375,7 +391,7 @@ def render_meeting_templates():
         if hasattr(st.session_state, "edit_template_id"):
             st.write("### Edit Template")
             
-            with st.form("edit_template_form"):
+            with st.form(f"{tab_id}_edit_template_form"):
                 edit_name = st.text_input("Template Name", value=st.session_state.edit_template_name)
                 edit_description = st.text_area("Description", value=st.session_state.edit_template_description)
                 
@@ -386,9 +402,9 @@ def render_meeting_templates():
                 for i, section in enumerate(st.session_state.edit_template_sections):
                     col1, col2 = st.columns([1, 3])
                     with col1:
-                        section_title = st.text_input(f"Title {i+1}", value=section.get("title", ""), key=f"edit_section_title_{i}")
+                        section_title = st.text_input(f"Title {i+1}", value=section.get("title", ""), key=f"{tab_id}_edit_section_title_{i}")
                     with col2:
-                        section_desc = st.text_input(f"Description {i+1}", value=section.get("description", ""), key=f"edit_section_desc_{i}")
+                        section_desc = st.text_input(f"Description {i+1}", value=section.get("description", ""), key=f"{tab_id}_edit_section_desc_{i}")
                     
                     edited_sections.append({"title": section_title, "description": section_desc})
                 
@@ -411,16 +427,16 @@ def render_meeting_templates():
             # Button to add/remove sections for edit form (outside the form)
             col1, col2 = st.columns(2)
             with col1:
-                if st.button("+ Add Section", key="edit_add_section"):
+                if st.button("+ Add Section", key=f"{tab_id}_edit_add_section"):
                     st.session_state.edit_template_sections.append({"title": "", "description": ""})
                     st.rerun()
             with col2:
-                if st.button("- Remove Last Section", key="edit_remove_section") and len(st.session_state.edit_template_sections) > 1:
+                if st.button("- Remove Last Section", key=f"{tab_id}_edit_remove_section") and len(st.session_state.edit_template_sections) > 1:
                     st.session_state.edit_template_sections.pop()
                     st.rerun()
             
             # Cancel button
-            if st.button("Cancel Editing"):
+            if st.button("Cancel Editing", key=f"{tab_id}_cancel_edit"):
                 delattr(st.session_state, "edit_template_id")
                 delattr(st.session_state, "edit_template_name")
                 delattr(st.session_state, "edit_template_description")
@@ -429,7 +445,7 @@ def render_meeting_templates():
     else:
         st.info("No templates have been created yet.")
 
-def render_new_meeting_form(current_user_id, current_user_name, team_member, can_manage):
+def render_new_meeting_form(current_user_id, current_user_name, team_member, can_manage, form_id):
     """Render the form to create a new meeting.
     
     Args:
@@ -437,8 +453,9 @@ def render_new_meeting_form(current_user_id, current_user_name, team_member, can
         current_user_name (str): Current user name
         team_member (dict): Team member data
         can_manage (bool): Whether user has management permissions
+        form_id (str): Unique ID for this form
     """
-    with st.form("new_meeting_form"):
+    with st.form(form_id):
         st.write("### Schedule a New 1:1 Meeting")
         
         # Get team members
@@ -459,7 +476,8 @@ def render_new_meeting_form(current_user_id, current_user_name, team_member, can
                 selected_member_id = st.selectbox(
                     "Team Member",
                     options=[tmid for tmid, _ in team_member_options],
-                    format_func=lambda x: next((name for tid, name in team_member_options if tid == x), "Unknown")
+                    format_func=lambda x: next((name for tid, name in team_member_options if tid == x), "Unknown"),
+                    key=f"{form_id}_team_member"
                 )
                 
                 # Get the selected member
@@ -497,7 +515,8 @@ def render_new_meeting_form(current_user_id, current_user_name, team_member, can
         # Meeting date
         meeting_date = st.date_input(
             "Meeting Date",
-            value=datetime.now().date() + timedelta(days=1)  # Default to tomorrow
+            value=datetime.now().date() + timedelta(days=1),  # Default to tomorrow
+            key=f"{form_id}_meeting_date"
         )
         
         # Meeting template
@@ -506,7 +525,8 @@ def render_new_meeting_form(current_user_id, current_user_name, team_member, can
         selected_template = st.selectbox(
             "Meeting Template",
             options=[t.get("id") for t in template_options],
-            format_func=lambda x: next((t.get("name") for t in template_options if t.get("id") == x), "Custom")
+            format_func=lambda x: next((t.get("name") for t in template_options if t.get("id") == x), "Custom"),
+            key=f"{form_id}_template"
         )
         
         # Submit button
@@ -527,14 +547,14 @@ def render_new_meeting_form(current_user_id, current_user_name, team_member, can
                 st.success(f"Meeting scheduled for {meeting_date.strftime('%Y-%m-%d')}!")
                 st.rerun()
 
-def render_meeting_card(meeting, current_user_id, can_manage, card_index=0):
+def render_meeting_card(meeting, current_user_id, can_manage, card_id):
     """Render a card for a meeting.
     
     Args:
         meeting (dict): Meeting data
         current_user_id (str): Current user ID
         can_manage (bool): Whether user has management permissions
-        card_index (int): Index of the card for unique key generation
+        card_id (str): Unique ID for this card
     """
     meeting_id = meeting.get("id")
     manager_name = meeting.get("manager_name", "Unknown")
@@ -573,9 +593,8 @@ def render_meeting_card(meeting, current_user_id, can_manage, card_index=0):
             st.markdown(f"<div style='background-color:{status_color};color:white;padding:3px 8px;border-radius:10px;display:inline-block;margin-top:10px;'>{status}</div>", unsafe_allow_html=True)
         
         with col3:
-            # View/Edit button - ensure unique key with card_index
-            unique_button_key = f"view_{card_index}_{meeting_id}"
-            if st.button("View/Edit", key=unique_button_key):
+            # View/Edit button
+            if st.button("View/Edit", key=f"{card_id}_view_btn"):
                 st.session_state.meeting_to_view = meeting_id
                 st.rerun()
     
@@ -583,15 +602,16 @@ def render_meeting_card(meeting, current_user_id, can_manage, card_index=0):
     
     # Show meeting details if selected
     if hasattr(st.session_state, "meeting_to_view") and st.session_state.meeting_to_view == meeting_id:
-        render_meeting_details(meeting, current_user_id, can_manage, card_index)
+        render_meeting_details(meeting, current_user_id, can_manage, card_id)
 
-def render_meeting_details(meeting, current_user_id, can_manage):
+def render_meeting_details(meeting, current_user_id, can_manage, meeting_prefix):
     """Render detailed view of a meeting.
     
     Args:
         meeting (dict): Meeting data
         current_user_id (str): Current user ID
         can_manage (bool): Whether user has management permissions
+        meeting_prefix (str): Unique prefix for this meeting's widgets
     """
     meeting_id = meeting.get("id")
     manager_name = meeting.get("manager_name", "Unknown")
@@ -619,25 +639,25 @@ def render_meeting_details(meeting, current_user_id, can_manage):
         status_col1, status_col2, status_col3, status_col4 = st.columns(4)
         
         with status_col1:
-            if st.button("Mark as Scheduled", disabled=(status == "Scheduled"), key=f"status_scheduled_{meeting_id}"):
+            if st.button("Mark as Scheduled", disabled=(status == "Scheduled"), key=f"{meeting_prefix}_status_scheduled"):
                 if update_meeting(meeting_id, status="Scheduled"):
                     st.success("Meeting status updated!")
                     st.rerun()
         
         with status_col2:
-            if st.button("Start Meeting", disabled=(status == "In Progress"), key=f"status_progress_{meeting_id}"):
+            if st.button("Start Meeting", disabled=(status == "In Progress"), key=f"{meeting_prefix}_status_progress"):
                 if update_meeting(meeting_id, status="In Progress"):
                     st.success("Meeting started!")
                     st.rerun()
         
         with status_col3:
-            if st.button("Complete Meeting", disabled=(status == "Completed"), key=f"status_complete_{meeting_id}"):
+            if st.button("Complete Meeting", disabled=(status == "Completed"), key=f"{meeting_prefix}_status_complete"):
                 if update_meeting(meeting_id, status="Completed"):
                     st.success("Meeting completed!")
                     st.rerun()
         
         with status_col4:
-            if st.button("Cancel Meeting", disabled=(status == "Cancelled"), key=f"status_cancel_{meeting_id}"):
+            if st.button("Cancel Meeting", disabled=(status == "Cancelled"), key=f"{meeting_prefix}_status_cancel"):
                 if update_meeting(meeting_id, status="Cancelled"):
                     st.success("Meeting cancelled!")
                     st.rerun()
@@ -653,7 +673,7 @@ def render_meeting_details(meeting, current_user_id, can_manage):
             meeting_notes = notes
             
             # Create a form for meeting notes
-            with st.form(f"meeting_notes_form_{meeting_id}"):
+            with st.form(f"{meeting_prefix}_meeting_notes_form"):
                 # Display each section with editable content field
                 for i, section in enumerate(sections):
                     st.markdown(f"#### {section.get('title', 'Section')}")
@@ -661,7 +681,7 @@ def render_meeting_details(meeting, current_user_id, can_manage):
                     section_content = st.text_area(
                         "Notes",
                         value=section.get('content', ''),
-                        key=f"section_{i}_{meeting_id}",
+                        key=f"{meeting_prefix}_section_{i}",
                         label_visibility="collapsed",
                         height=100
                     )
@@ -676,7 +696,7 @@ def render_meeting_details(meeting, current_user_id, can_manage):
                 meeting_notes = st.text_area(
                     "Additional Notes",
                     value=notes,
-                    key=f"notes_{meeting_id}",
+                    key=f"{meeting_prefix}_notes",
                     height=150
                 )
                 
@@ -693,21 +713,32 @@ def render_meeting_details(meeting, current_user_id, can_manage):
             st.write("### Action Items")
             
             # Form to add a new action item
-            with st.form(f"new_action_item_form_{meeting_id}"):
+            with st.form(f"{meeting_prefix}_new_action_item_form"):
                 st.write("Add a new action item:")
-                item_description = st.text_input("Description", key=f"new_item_desc_{meeting_id}")
+                item_description = st.text_input("Description", key=f"{meeting_prefix}_new_item_desc")
                 
                 col1, col2, col3 = st.columns(3)
                 
                 with col1:
                     assigned_options = [manager_name, team_member_name]
-                    assigned_to = st.selectbox("Assigned To", assigned_options, key=f"new_item_assigned_{meeting_id}")
+                    assigned_to = st.selectbox(
+                        "Assigned To", 
+                        assigned_options, 
+                        key=f"{meeting_prefix}_new_item_assigned"
+                    )
                 
                 with col2:
-                    due_date = st.date_input("Due Date", key=f"new_item_due_{meeting_id}")
+                    due_date = st.date_input(
+                        "Due Date", 
+                        key=f"{meeting_prefix}_new_item_due"
+                    )
                 
                 with col3:
-                    priority = st.selectbox("Priority", ["High", "Medium", "Low"], key=f"new_item_priority_{meeting_id}")
+                    priority = st.selectbox(
+                        "Priority", 
+                        ["High", "Medium", "Low"], 
+                        key=f"{meeting_prefix}_new_item_priority"
+                    )
                     add_item = st.form_submit_button("Add Action Item")
                 
                 if add_item and item_description:
@@ -742,12 +773,12 @@ def render_meeting_details(meeting, current_user_id, can_manage):
                             st.write(f"**Status:** {item.get('status', 'Pending')}")
                         
                         # Form to update action item status
-                        with st.form(f"update_action_item_{i}_{meeting_id}"):
+                        with st.form(f"{meeting_prefix}_update_action_item_{i}"):
                             new_status = st.selectbox(
                                 "Update Status",
                                 ["Pending", "In Progress", "Completed", "Cancelled"],
                                 index=["Pending", "In Progress", "Completed", "Cancelled"].index(item.get("status", "Pending")),
-                                key=f"update_status_{i}_{meeting_id}"
+                                key=f"{meeting_prefix}_update_status_{i}"
                             )
                             
                             update_status = st.form_submit_button("Update Status")
@@ -758,7 +789,7 @@ def render_meeting_details(meeting, current_user_id, can_manage):
                                     st.rerun()
                 
                 # Button to add all action items to the weekly report
-                add_to_report = st.button("Add Action Items to Weekly Report", key=f"add_to_report_{meeting_id}")
+                add_to_report = st.button("Add Action Items to Weekly Report", key=f"{meeting_prefix}_add_to_report")
                 
                 if add_to_report:
                     next_steps = convert_action_items_to_next_steps(meeting_id)
@@ -784,11 +815,12 @@ def render_meeting_details(meeting, current_user_id, can_manage):
             st.write("### Meeting Details")
             
             # Form to update meeting details
-            with st.form(f"update_meeting_form_{meeting_id}"):
+            with st.form(f"{meeting_prefix}_update_meeting_form"):
                 # Reschedule meeting
                 new_date = st.date_input(
                     "Reschedule Meeting",
-                    value=datetime.strptime(scheduled_date, "%Y-%m-%d").date() if scheduled_date else datetime.now().date()
+                    value=datetime.strptime(scheduled_date, "%Y-%m-%d").date() if scheduled_date else datetime.now().date(),
+                    key=f"{meeting_prefix}_reschedule_date"
                 )
                 
                 update_meeting_btn = st.form_submit_button("Update Meeting")
@@ -799,14 +831,14 @@ def render_meeting_details(meeting, current_user_id, can_manage):
                         st.rerun()
             
             # Delete meeting button
-            if st.button("Delete Meeting", key=f"delete_meeting_{meeting_id}"):
+            if st.button("Delete Meeting", key=f"{meeting_prefix}_delete_meeting"):
                 # Confirm delete
                 st.warning("Are you sure you want to delete this meeting?")
                 
                 col1, col2 = st.columns(2)
                 
                 with col1:
-                    if st.button("Yes, Delete Meeting", key=f"confirm_delete_{meeting_id}"):
+                    if st.button("Yes, Delete Meeting", key=f"{meeting_prefix}_confirm_delete"):
                         if delete_meeting(meeting_id):
                             st.success("Meeting deleted!")
                             # Remove from session state
@@ -814,21 +846,21 @@ def render_meeting_details(meeting, current_user_id, can_manage):
                             st.rerun()
                 
                 with col2:
-                    if st.button("Cancel", key=f"cancel_delete_{meeting_id}"):
+                    if st.button("Cancel", key=f"{meeting_prefix}_cancel_delete"):
                         st.rerun()
         
         # Close button
-        if st.button("Close", key=f"close_{meeting_id}"):
+        if st.button("Close", key=f"{meeting_prefix}_close"):
             delattr(st.session_state, "meeting_to_view")
             st.rerun()
 
-def render_action_item_list(items, current_user_id, list_index=0):
+def render_action_item_list(items, current_user_id, list_id):
     """Render a list of action items.
     
     Args:
         items (list): List of action items
         current_user_id (str): Current user ID
-        list_index (int): Index for unique key generation
+        list_id (str): Unique ID for this list to generate unique keys
     """
     if not items:
         st.info("No action items in this category.")
@@ -886,12 +918,12 @@ def render_action_item_list(items, current_user_id, list_index=0):
             item_id = item.get("id")
             
             # Form to update status
-            with st.form(f"update_action_item_status_{list_index}_{i}_{meeting_id}_{item_id}"):
+            with st.form(f"{list_id}_update_form_{i}_{item_id}"):
                 new_status = st.selectbox(
                     "Update Status",
                     ["Pending", "In Progress", "Completed", "Cancelled"],
                     index=["Pending", "In Progress", "Completed", "Cancelled"].index(item.get("status", "Pending")),
-                    key=f"action_status_{list_index}_{i}_{meeting_id}_{item_id}"
+                    key=f"{list_id}_status_select_{i}_{item_id}"
                 )
                 
                 update_btn = st.form_submit_button("Update Status")
