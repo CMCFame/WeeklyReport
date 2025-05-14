@@ -424,17 +424,32 @@ def render_import_section():
         
         # Copy teams with serializable data
         for team in structure.get("teams", []):
-            serializable_team = {k: v for k, v in team.items() if not isinstance(v, (type, function))}
+            # Filter out non-serializable items
+            serializable_team = {}
+            for k, v in team.items():
+                # Check if it's a basic JSON serializable type
+                if isinstance(v, (str, int, float, bool, list, dict)) or v is None:
+                    serializable_team[k] = v
             serializable_structure["teams"].append(serializable_team)
         
         # Copy members with serializable data
         for member in structure.get("members", []):
-            serializable_member = {k: v for k, v in member.items() if not isinstance(v, (type, function))}
+            # Filter out non-serializable items
+            serializable_member = {}
+            for k, v in member.items():
+                # Check if it's a basic JSON serializable type
+                if isinstance(v, (str, int, float, bool, list, dict)) or v is None:
+                    serializable_member[k] = v
             serializable_structure["members"].append(serializable_member)
         
         # Copy relationships with serializable data
         for rel in structure.get("relationships", []):
-            serializable_rel = {k: v for k, v in rel.items() if not isinstance(v, (type, function))}
+            # Filter out non-serializable items
+            serializable_rel = {}
+            for k, v in rel.items():
+                # Check if it's a basic JSON serializable type
+                if isinstance(v, (str, int, float, bool, list, dict)) or v is None:
+                    serializable_rel[k] = v
             serializable_structure["relationships"].append(serializable_rel)
         
         try:
