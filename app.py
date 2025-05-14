@@ -1,4 +1,4 @@
-# app.py - Updated to include team management features
+# app.py
 
 """
 Weekly Activity Report Application
@@ -56,6 +56,8 @@ from components.placeholder import (
     render_okr_management,
     render_system_settings
 )
+from components.advanced_analytics import render_advanced_analytics
+from components.batch_export import render_batch_export
 
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
@@ -163,6 +165,10 @@ def render_selected_page(page_name):
         render_report_templates()
     elif page_name == "Report Analytics":
         render_weekly_report_analytics()
+    elif page_name == "Advanced Analytics":
+        render_advanced_analytics()
+    elif page_name == "Batch Export":
+        render_batch_export()
     
     # Goals & Tracking section
     elif page_name == "Team Objectives":

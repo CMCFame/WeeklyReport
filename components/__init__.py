@@ -1,4 +1,4 @@
-# components/__init__.py - Updated with team management features
+# components/__init__.py
 """Component modules for the Weekly Report app."""
 
 # Import all components for easier access
@@ -42,6 +42,8 @@ from components.placeholder import (
 # Import dashboard components
 from components.goal_dashboard import render_goal_dashboard
 from components.weekly_report_analytics import render_weekly_report_analytics
+from components.advanced_analytics import render_advanced_analytics
+from components.batch_export import render_batch_export
 
 # Import PDF export components
 from components.pdf_export import (

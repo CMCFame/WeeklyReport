@@ -1,4 +1,4 @@
-# Updated requirements.txt
+# requirements.txt
 streamlit>=1.25.0
 pandas>=1.5.0
 fpdf>=1.7.2
@@ -7,3 +7,5 @@ plotly>=5.10.0
 numpy>=1.20.0
 requests>=2.26.0
 networkx>=2.5
+xlsxwriter>=3.0.0
+openpyxl>=3.0.9
