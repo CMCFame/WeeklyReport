@@ -414,14 +414,42 @@ def render_import_section():
     
     # Export
     structure = load_team_structure()
-    if structure["teams"] or structure["members"]:
-        st.download_button(
-            "Export Team Structure",
-            json.dumps(structure, indent=2),
-            "team_structure.json",
-            "application/json",
-            key='download-structure'
-        )
+    if structure.get("teams") or structure.get("members"):
+        # Ensure the structure can be serialized to JSON
+        serializable_structure = {
+            "teams": [],
+            "members": [],
+            "relationships": []
+        }
+        
+        # Copy teams with serializable data
+        for team in structure.get("teams", []):
+            serializable_team = {k: v for k, v in team.items() if not isinstance(v, (type, function))}
+            serializable_structure["teams"].append(serializable_team)
+        
+        # Copy members with serializable data
+        for member in structure.get("members", []):
+            serializable_member = {k: v for k, v in member.items() if not isinstance(v, (type, function))}
+            serializable_structure["members"].append(serializable_member)
+        
+        # Copy relationships with serializable data
+        for rel in structure.get("relationships", []):
+            serializable_rel = {k: v for k, v in rel.items() if not isinstance(v, (type, function))}
+            serializable_structure["relationships"].append(serializable_rel)
+        
+        try:
+            # Serialize to JSON
+            json_str = json.dumps(serializable_structure, indent=2)
+            
+            st.download_button(
+                "Export Team Structure",
+                json_str,
+                "team_structure.json",
+                "application/json",
+                key='download-structure'
+            )
+        except Exception as e:
+            st.error(f"Error exporting structure: {str(e)}")
     
     # Import
     uploaded_file = st.file_uploader("Import Team Structure from JSON", type="json")
