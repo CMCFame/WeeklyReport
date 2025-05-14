@@ -277,9 +277,10 @@ def render_team_view(objectives):
         st.info("No team data available for visualization.")
     
     # Display objectives by team
-    for team, objs in team_objectives.items():
+    for idx, (team, objs) in enumerate(team_objectives.items()):
         with st.expander(f"{team} ({len(objs)} objectives)"):
-            render_objective_table(objs)
+            # Added section_prefix to avoid duplicate keys
+            render_objective_table(objs, section_prefix=f"team_{idx}")
 
 def render_person_view(objectives):
     """Render person-based objective view.
@@ -361,9 +362,10 @@ def render_person_view(objectives):
         st.info("No individual data available for visualization.")
     
     # Display objectives by person
-    for person, objs in person_objectives.items():
+    for idx, (person, objs) in enumerate(person_objectives.items()):
         with st.expander(f"{person} ({len(objs)} objectives)"):
-            render_objective_table(objs)
+            # Added section_prefix to avoid duplicate keys
+            render_objective_table(objs, section_prefix=f"person_{idx}")
 
 def render_trends_view(objectives):
     """Render trends and completion analysis.
@@ -522,11 +524,12 @@ def render_completion_projection(objectives, progress_data):
     else:
         st.warning("Cannot project completion date with current data. Need more progress updates.")
 
-def render_objective_table(objectives):
+def render_objective_table(objectives, section_prefix="summary"):
     """Render a table of objectives.
     
     Args:
         objectives (list): List of objectives to display
+        section_prefix (str): Prefix for widget keys to avoid duplicates
     """
     # Create a dataframe for display
     data = []
@@ -577,11 +580,11 @@ def render_objective_table(objectives):
     # Add option to view detailed objective
     st.write("Click on an objective to view details:")
     
-    # Dropdown to select objective
+    # Dropdown to select objective with unique key using section_prefix
     selected_obj_title = st.selectbox(
         "Select Objective",
         options=df["Title"].tolist(),
-        key=f"select_obj_{hash(tuple(df['ID']))}"
+        key=f"{section_prefix}_select_obj_{hash(tuple(df['ID']))}"
     )
     
     # Find the selected objective
@@ -589,15 +592,16 @@ def render_objective_table(objectives):
     selected_obj = next((obj for obj in objectives if obj.get('id') == selected_obj_id), None)
     
     if selected_obj:
-        # FIXED: Removed nested expander - use a subheader instead
+        # Use a subheader instead of an expander
         st.subheader("Objective Details")
-        render_objective_details(selected_obj)
+        render_objective_details(selected_obj, section_prefix)
 
-def render_objective_details(objective):
+def render_objective_details(objective, section_prefix="summary"):
     """Render detailed view of a single objective.
     
     Args:
         objective (dict): Objective data
+        section_prefix (str): Prefix for widget keys to avoid duplicates
     """
     # Title and description
     st.markdown(f"### {objective.get('title', 'Untitled Objective')}")
@@ -639,8 +643,8 @@ def render_objective_details(objective):
         
         # Show updates if available
         if 'updates' in kr and kr['updates']:
-            # Using a separate expander that's not nested
-            with st.expander("View Updates"):
+            # Using a separate expander with a unique key
+            with st.expander("View Updates", key=f"{section_prefix}_updates_{objective.get('id')}_{i}"):
                 for update in kr['updates']:
                     st.write(f"**{update.get('date', '')}:** {update.get('previous', 0):.0f}% → {update.get('current', 0):.0f}%")
                     if update.get('note'):
