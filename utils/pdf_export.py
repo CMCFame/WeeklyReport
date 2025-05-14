@@ -1,4 +1,4 @@
-# utils/pdf_export.py
+v# utils/pdf_export.py - Fixed version
 """PDF export utilities for the Weekly Report app."""
 
 import os
@@ -141,9 +141,9 @@ def ensure_font_directory():
     
     # Font URLs - these are direct links to DejaVu font files
     font_urls = {
-        "DejaVuSansCondensed.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed.ttf",
-        "DejaVuSansCondensed-Bold.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed-Bold.ttf",
-        "DejaVuSansCondensed-Oblique.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed-Oblique.ttf"
+        "DejaVuSansCondensed.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed.ttf",
+        "DejaVuSansCondensed-Bold.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed-Bold.ttf",
+        "DejaVuSansCondensed-Oblique.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed-Oblique.ttf"
     }
     
     # Check if fonts exist and download if needed
@@ -178,134 +178,199 @@ def export_report_to_pdf(report_data):
     Returns:
         str: Path to the generated PDF file
     """
-    # Create a temporary directory to store the PDF
-    temp_dir = tempfile.mkdtemp()
-    file_path = os.path.join(temp_dir, f"report_{report_data.get('id', 'unknown')}.pdf")
-    
-    # Ensure font directory exists
-    ensure_font_directory()
-    
-    # Initialize PDF instance
-    pdf = ReportPDF()
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    # Report header
-    pdf.set_font('DejaVu', 'B', 16)
-    pdf.cell(0, 10, "Weekly Activity Report", 0, 1, 'C')
-    pdf.ln(5)
-    
-    # Report metadata
-    pdf.set_font('DejaVu', '', 12)
-    pdf.cell(0, 10, f"Name: {report_data.get('name', 'Anonymous')}", 0, 1)
-    pdf.cell(0, 10, f"Week: {report_data.get('reporting_week', 'Unknown')}", 0, 1)
-    pdf.cell(0, 10, f"Date: {report_data.get('timestamp', '')[:10]}", 0, 1)
-    pdf.ln(5)
-    
-    # Current activities
-    if 'current_activities' in report_data and report_data['current_activities']:
-        pdf.chapter_title("Current Activities")
+    try:
+        # Create a temporary directory to store the PDF
+        temp_dir = tempfile.mkdtemp()
+        file_path = os.path.join(temp_dir, f"report_{report_data.get('id', 'unknown')}.pdf")
         
-        for activity in report_data['current_activities']:
-            pdf.section_title(activity.get('description', 'No description'))
+        # Ensure font directory exists
+        ensure_font_directory()
+        
+        # Initialize PDF instance
+        pdf = ReportPDF()
+        pdf.alias_nb_pages()
+        pdf.add_page()
+        
+        # Report header
+        pdf.set_font('DejaVu', 'B', 16)
+        pdf.cell(0, 10, "Weekly Activity Report", 0, 1, 'C')
+        pdf.ln(5)
+        
+        # Report metadata
+        pdf.set_font('DejaVu', '', 12)
+        pdf.cell(0, 10, f"Name: {report_data.get('name', 'Anonymous')}", 0, 1)
+        pdf.cell(0, 10, f"Week: {report_data.get('reporting_week', 'Unknown')}", 0, 1)
+        
+        # Safely extract timestamp - fix potential index error
+        timestamp = report_data.get('timestamp', '')
+        if timestamp and len(timestamp) >= 10:
+            pdf.cell(0, 10, f"Date: {timestamp[:10]}", 0, 1)
+        else:
+            pdf.cell(0, 10, f"Date: Unknown", 0, 1)
             
-            # Project and milestone
-            project_text = f"{activity.get('project', 'No project')}"
-            if activity.get('milestone'):
-                project_text += f" / {activity.get('milestone')}"
-            pdf.add_text_with_label("Project:", project_text)
+        pdf.ln(5)
+        
+        # Current activities
+        current_activities = report_data.get('current_activities', [])
+        if current_activities and isinstance(current_activities, list) and len(current_activities) > 0:
+            pdf.chapter_title("Current Activities")
             
-            # Status and priority
-            status_line = f"Status: {activity.get('status', 'Unknown')} | Priority: {activity.get('priority', 'Medium')}"
-            if activity.get('deadline'):
-                status_line += f" | Deadline: {activity.get('deadline')}"
-            pdf.cell(0, 5, status_line, 0, 1)
-            
-            # Progress bar
-            pdf.cell(0, 5, "Progress:", 0, 1)
-            pdf.add_progress_bar(activity.get('progress', 0))
-            
-            # Customer and billable
-            if activity.get('customer'):
-                pdf.cell(0, 5, f"Customer: {activity.get('customer')}", 0, 1)
-            if activity.get('billable'):
-                pdf.cell(0, 5, f"Billable: {activity.get('billable')}", 0, 1)
+            for activity in current_activities:
+                if not isinstance(activity, dict):  # Skip if not a dictionary
+                    continue
+                    
+                pdf.section_title(activity.get('description', 'No description'))
                 
-            pdf.ln(5)
-    
-    # Upcoming activities
-    if 'upcoming_activities' in report_data and report_data['upcoming_activities']:
-        pdf.chapter_title("Upcoming Activities")
-        
-        for activity in report_data['upcoming_activities']:
-            pdf.section_title(activity.get('description', 'No description'))
-            
-            # Project and milestone
-            project_text = f"{activity.get('project', 'No project')}"
-            if activity.get('milestone'):
-                project_text += f" / {activity.get('milestone')}"
-            pdf.add_text_with_label("Project:", project_text)
-            
-            # Priority and start date
-            pdf.cell(0, 5, f"Priority: {activity.get('priority', 'Medium')}", 0, 1)
-            if activity.get('expected_start'):
-                pdf.cell(0, 5, f"Expected Start: {activity.get('expected_start')}", 0, 1)
+                # Project and milestone
+                project_text = f"{activity.get('project', 'No project')}"
+                if activity.get('milestone'):
+                    project_text += f" / {activity.get('milestone')}"
+                pdf.add_text_with_label("Project:", project_text)
                 
+                # Status and priority
+                status_line = f"Status: {activity.get('status', 'Unknown')} | Priority: {activity.get('priority', 'Medium')}"
+                if activity.get('deadline'):
+                    status_line += f" | Deadline: {activity.get('deadline')}"
+                pdf.cell(0, 5, status_line, 0, 1)
+                
+                # Progress bar
+                pdf.cell(0, 5, "Progress:", 0, 1)
+                pdf.add_progress_bar(activity.get('progress', 0))
+                
+                # Customer and billable
+                if activity.get('customer'):
+                    pdf.cell(0, 5, f"Customer: {activity.get('customer')}", 0, 1)
+                if activity.get('billable'):
+                    pdf.cell(0, 5, f"Billable: {activity.get('billable')}", 0, 1)
+                    
+                pdf.ln(5)
+        
+        # Upcoming activities
+        upcoming_activities = report_data.get('upcoming_activities', [])
+        if upcoming_activities and isinstance(upcoming_activities, list) and len(upcoming_activities) > 0:
+            pdf.chapter_title("Upcoming Activities")
+            
+            for activity in upcoming_activities:
+                if not isinstance(activity, dict):  # Skip if not a dictionary
+                    continue
+                    
+                pdf.section_title(activity.get('description', 'No description'))
+                
+                # Project and milestone
+                project_text = f"{activity.get('project', 'No project')}"
+                if activity.get('milestone'):
+                    project_text += f" / {activity.get('milestone')}"
+                pdf.add_text_with_label("Project:", project_text)
+                
+                # Priority and start date
+                pdf.cell(0, 5, f"Priority: {activity.get('priority', 'Medium')}", 0, 1)
+                if activity.get('expected_start'):
+                    pdf.cell(0, 5, f"Expected Start: {activity.get('expected_start')}", 0, 1)
+                    
+                pdf.ln(5)
+        
+        # Accomplishments
+        accomplishments = report_data.get('accomplishments', [])
+        if accomplishments and isinstance(accomplishments, list) and len(accomplishments) > 0:
+            pdf.chapter_title("Last Week's Accomplishments")
+            
+            for accomplishment in accomplishments:
+                # Check if the accomplishment is a string or potentially JSON data
+                if isinstance(accomplishment, str):
+                    # Try to parse as JSON in case it's stored as JSON string
+                    try:
+                        import json
+                        json_data = json.loads(accomplishment)
+                        if isinstance(json_data, dict) and 'text' in json_data:
+                            accomplishment_text = json_data['text']
+                        else:
+                            accomplishment_text = accomplishment
+                    except:
+                        accomplishment_text = accomplishment
+                        
+                    if accomplishment_text:  # Skip empty strings
+                        pdf.add_list_item(accomplishment_text)
+            
             pdf.ln(5)
-    
-    # Accomplishments
-    if 'accomplishments' in report_data and report_data['accomplishments']:
-        pdf.chapter_title("Last Week's Accomplishments")
         
-        for accomplishment in report_data['accomplishments']:
-            if accomplishment:  # Skip empty strings
-                pdf.add_list_item(accomplishment)
+        # Action items
+        followups = report_data.get('followups', [])
+        nextsteps = report_data.get('nextsteps', [])
         
-        pdf.ln(5)
-    
-    # Action items
-    pdf.chapter_title("Action Items")
-    
-    # Follow-ups
-    if 'followups' in report_data and report_data['followups']:
-        pdf.section_title("From Last Meeting")
+        if (followups and isinstance(followups, list) and len(followups) > 0) or \
+           (nextsteps and isinstance(nextsteps, list) and len(nextsteps) > 0):
+            pdf.chapter_title("Action Items")
+            
+            # Follow-ups
+            if followups and isinstance(followups, list) and len(followups) > 0:
+                pdf.section_title("From Last Meeting")
+                
+                for followup in followups:
+                    # Check if the followup is a string or potentially JSON data
+                    if isinstance(followup, str):
+                        # Try to parse as JSON in case it's stored as JSON string
+                        try:
+                            import json
+                            json_data = json.loads(followup)
+                            if isinstance(json_data, dict) and 'text' in json_data:
+                                followup_text = json_data['text']
+                            else:
+                                followup_text = followup
+                        except:
+                            followup_text = followup
+                            
+                        if followup_text:  # Skip empty strings
+                            pdf.add_list_item(followup_text)
+                
+                pdf.ln(5)
+            
+            # Next steps
+            if nextsteps and isinstance(nextsteps, list) and len(nextsteps) > 0:
+                pdf.section_title("Next Steps")
+                
+                for nextstep in nextsteps:
+                    # Check if the nextstep is a string or potentially JSON data
+                    if isinstance(nextstep, str):
+                        # Try to parse as JSON in case it's stored as JSON string
+                        try:
+                            import json
+                            json_data = json.loads(nextstep)
+                            if isinstance(json_data, dict) and 'text' in json_data:
+                                nextstep_text = json_data['text']
+                            else:
+                                nextstep_text = nextstep
+                        except:
+                            nextstep_text = nextstep
+                            
+                        if nextstep_text:  # Skip empty strings
+                            pdf.add_list_item(nextstep_text)
+                
+                pdf.ln(5)
         
-        for followup in report_data['followups']:
-            if followup:  # Skip empty strings
-                pdf.add_list_item(followup)
+        # Optional sections
+        optional_sections = [
+            {'key': 'challenges', 'title': 'Challenges & Assistance'},
+            {'key': 'slow_projects', 'title': 'Slow-Moving Projects'},
+            {'key': 'other_topics', 'title': 'Other Discussion Topics'},
+            {'key': 'key_accomplishments', 'title': 'Key Accomplishments'},
+            {'key': 'concerns', 'title': 'Concerns'}
+        ]
         
-        pdf.ln(5)
-    
-    # Next steps
-    if 'nextsteps' in report_data and report_data['nextsteps']:
-        pdf.section_title("Next Steps")
+        for section in optional_sections:
+            key = section['key']
+            if key in report_data and report_data[key]:
+                pdf.chapter_title(section['title'])
+                pdf.chapter_body(report_data[key])
+                pdf.ln(5)
         
-        for nextstep in report_data['nextsteps']:
-            if nextstep:  # Skip empty strings
-                pdf.add_list_item(nextstep)
+        # Output the PDF to a file
+        pdf.output(file_path, 'F')
         
-        pdf.ln(5)
-    
-    # Optional sections
-    optional_sections = [
-        {'key': 'challenges', 'title': 'Challenges & Assistance'},
-        {'key': 'slow_projects', 'title': 'Slow-Moving Projects'},
-        {'key': 'other_topics', 'title': 'Other Discussion Topics'},
-        {'key': 'key_accomplishments', 'title': 'Key Accomplishments'},
-        {'key': 'concerns', 'title': 'Concerns'}
-    ]
-    
-    for section in optional_sections:
-        key = section['key']
-        if key in report_data and report_data[key]:
-            pdf.chapter_title(section['title'])
-            pdf.chapter_body(report_data[key])
-            pdf.ln(5)
-    
-    # Output the PDF to a file
-    pdf.output(file_path, 'F')
-    
-    return file_path
+        return file_path
+    except Exception as e:
+        # Log the detailed error for debugging
+        st.error(f"Error generating PDF: {str(e)}")
+        raise e
 
 def export_objective_to_pdf(objective_data):
     """Export an objective to PDF.
@@ -316,75 +381,93 @@ def export_objective_to_pdf(objective_data):
     Returns:
         str: Path to the generated PDF file
     """
-    # Create a temporary directory to store the PDF
-    temp_dir = tempfile.mkdtemp()
-    file_path = os.path.join(temp_dir, f"objective_{objective_data.get('id', 'unknown')}.pdf")
-    
-    # Ensure font directory exists
-    ensure_font_directory()
-    
-    # Initialize PDF instance
-    pdf = ReportPDF()
-    pdf.alias_nb_pages()
-    pdf.add_page()
-    
-    # Objective header
-    pdf.set_font('DejaVu', 'B', 16)
-    title = objective_data.get('title', 'Untitled Objective')
-    pdf.cell(0, 10, title, 0, 1, 'C')
-    pdf.ln(5)
-    
-    # Objective metadata
-    pdf.set_font('DejaVu', '', 12)
-    pdf.cell(0, 10, f"Level: {objective_data.get('level', 'unknown').capitalize()}", 0, 1)
-    
-    if objective_data.get('level') == 'team':
-        pdf.cell(0, 10, f"Team: {objective_data.get('team', 'Unassigned')}", 0, 1)
-    
-    pdf.cell(0, 10, f"Owner: {objective_data.get('owner_name', 'Unassigned')}", 0, 1)
-    pdf.cell(0, 10, f"Period: {objective_data.get('period', 'Unknown')}", 0, 1)
-    pdf.cell(0, 10, f"Status: {objective_data.get('status', 'Unknown')}", 0, 1)
-    pdf.ln(5)
-    
-    # Description
-    if 'description' in objective_data and objective_data['description']:
-        pdf.chapter_title("Description")
-        pdf.chapter_body(objective_data['description'])
-        pdf.ln(5)
-    
-    # Key Results
-    if 'key_results' in objective_data and objective_data['key_results']:
-        pdf.chapter_title("Key Results")
+    try:
+        # Create a temporary directory to store the PDF
+        temp_dir = tempfile.mkdtemp()
+        file_path = os.path.join(temp_dir, f"objective_{objective_data.get('id', 'unknown')}.pdf")
         
-        for i, kr in enumerate(objective_data['key_results']):
-            # Get progress
-            progress = kr.get('progress', 0)
+        # Ensure font directory exists
+        ensure_font_directory()
+        
+        # Initialize PDF instance
+        pdf = ReportPDF()
+        pdf.alias_nb_pages()
+        pdf.add_page()
+        
+        # Objective header
+        pdf.set_font('DejaVu', 'B', 16)
+        title = objective_data.get('title', 'Untitled Objective')
+        pdf.cell(0, 10, title, 0, 1, 'C')
+        pdf.ln(5)
+        
+        # Objective metadata
+        pdf.set_font('DejaVu', '', 12)
+        pdf.cell(0, 10, f"Level: {objective_data.get('level', 'unknown').capitalize()}", 0, 1)
+        
+        if objective_data.get('level') == 'team':
+            pdf.cell(0, 10, f"Team: {objective_data.get('team', 'Unassigned')}", 0, 1)
+        
+        pdf.cell(0, 10, f"Owner: {objective_data.get('owner_name', 'Unassigned')}", 0, 1)
+        pdf.cell(0, 10, f"Period: {objective_data.get('period', 'Unknown')}", 0, 1)
+        pdf.cell(0, 10, f"Status: {objective_data.get('status', 'Unknown')}", 0, 1)
+        pdf.ln(5)
+        
+        # Description
+        if 'description' in objective_data and objective_data['description']:
+            pdf.chapter_title("Description")
+            pdf.chapter_body(objective_data['description'])
+            pdf.ln(5)
+        
+        # Key Results
+        key_results = objective_data.get('key_results', [])
+        if key_results and isinstance(key_results, list) and len(key_results) > 0:
+            pdf.chapter_title("Key Results")
             
-            # Key result title and progress
-            pdf.section_title(f"KR{i+1}: {kr.get('description', 'No description')}")
-            pdf.cell(30, 5, "Progress:")
-            pdf.add_progress_bar(progress)
-            
-            # Updates
-            if 'updates' in kr and kr['updates']:
-                pdf.section_title("Recent Updates")
-                
-                for update in kr['updates'][-3:]:  # Show last 3 updates
-                    # Format update info
-                    update_text = f"{update.get('date', '')}: {update.get('previous', 0)}% → {update.get('current', 0)}%"
-                    if update.get('note'):
-                        update_text += f"\n{update.get('note')}"
+            for i, kr in enumerate(key_results):
+                if not isinstance(kr, dict):  # Skip if not a dictionary
+                    continue
                     
-                    pdf.add_list_item(update_text)
+                # Get progress
+                progress = kr.get('progress', 0)
                 
-                pdf.ln(5)
-    
-    # Last updated
-    if 'last_updated' in objective_data:
-        pdf.set_font('DejaVu', 'I', 10)
-        pdf.cell(0, 10, f"Last Updated: {objective_data['last_updated'][:10]}", 0, 1)
-    
-    # Output the PDF to a file
-    pdf.output(file_path, 'F')
-    
-    return file_path    
+                # Key result title and progress
+                pdf.section_title(f"KR{i+1}: {kr.get('description', 'No description')}")
+                pdf.cell(30, 5, "Progress:")
+                pdf.add_progress_bar(progress)
+                
+                # Updates
+                updates = kr.get('updates', [])
+                if updates and isinstance(updates, list) and len(updates) > 0:
+                    pdf.section_title("Recent Updates")
+                    
+                    # Get last 3 updates or fewer if there aren't 3
+                    recent_updates = updates[-min(3, len(updates)):]
+                    
+                    for update in recent_updates:
+                        if not isinstance(update, dict):  # Skip if not a dictionary
+                            continue
+                            
+                        # Format update info
+                        update_text = f"{update.get('date', '')}: {update.get('previous', 0)}% → {update.get('current', 0)}%"
+                        if update.get('note'):
+                            update_text += f"\n{update.get('note')}"
+                        
+                        pdf.add_list_item(update_text)
+                    
+                    pdf.ln(5)
+        
+        # Last updated
+        if 'last_updated' in objective_data:
+            last_updated = objective_data['last_updated']
+            if last_updated and len(last_updated) >= 10:
+                pdf.set_font('DejaVu', 'I', 10)
+                pdf.cell(0, 10, f"Last Updated: {last_updated[:10]}", 0, 1)
+        
+        # Output the PDF to a file
+        pdf.output(file_path, 'F')
+        
+        return file_path
+    except Exception as e:
+        # Log the detailed error for debugging
+        st.error(f"Error generating objective PDF: {str(e)}")
+        raise e
