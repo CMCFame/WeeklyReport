@@ -1,4 +1,4 @@
-v# utils/pdf_export.py - Fixed version
+# utils/pdf_export.py
 """PDF export utilities for the Weekly Report app."""
 
 import os
@@ -141,9 +141,9 @@ def ensure_font_directory():
     
     # Font URLs - these are direct links to DejaVu font files
     font_urls = {
-        "DejaVuSansCondensed.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed.ttf",
-        "DejaVuSansCondensed-Bold.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed-Bold.ttf",
-        "DejaVuSansCondensed-Oblique.ttf": "https://github.com/mps/fonts/tree/masterDejaVuSansCondensed-Oblique.ttf"
+        "DejaVuSansCondensed.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed.ttf",
+        "DejaVuSansCondensed-Bold.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed-Bold.ttf",
+        "DejaVuSansCondensed-Oblique.ttf": "https://github.com/dejavu-fonts/dejavu-fonts/raw/master/ttf/DejaVuSansCondensed-Oblique.ttf"
     }
     
     # Check if fonts exist and download if needed
