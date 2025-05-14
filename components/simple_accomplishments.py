@@ -1,21 +1,27 @@
 import streamlit as st
 import pandas as pd
 
-def render_accomplishments():
+def render_simple_accomplishments():
+    """
+    Render the simplified last week's accomplishments section.
+    
+    This section allows users to add, edit, and remove accomplishments
+    with minimal complexity, using Streamlit's built-in data editor.
+    """
     st.subheader("✓ Last Week's Accomplishments")
     st.write("What did you accomplish last week? (Bullet points work best)")
 
-    # Initialize DataFrame in session state
+    # Initialize the DataFrame in session state
     if "accomplishments" not in st.session_state:
         st.session_state.accomplishments = pd.DataFrame(columns=["Accomplishment"])
 
-    # Render data editor
+    # Render the data editor for dynamic add/edit/remove
     edited_df = st.data_editor(
         st.session_state.accomplishments,
         column_config={
             "Accomplishment": st.column_config.TextColumn(
                 "Accomplishment",
-                placeholder="Describe what you completed…"
+                placeholder="Describe your accomplishment here…"
             )
         },
         num_rows="dynamic",
@@ -23,5 +29,5 @@ def render_accomplishments():
         key="accomplishments_editor",
     )
 
-    # Save back to session state
+    # Save edits back to session state
     st.session_state.accomplishments = edited_df
