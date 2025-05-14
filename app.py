@@ -45,8 +45,8 @@ from components.objectives_import import render_objectives_import
 from components.navigation import render_navigation, get_current_page
 from components.report_templates import render_report_templates
 from components.team_objectives import render_team_objectives
+from components.goal_dashboard import render_goal_dashboard
 from components.placeholder import (
-    render_goal_dashboard,
     render_okr_management,
     render_team_structure,
     render_one_on_one_meetings,

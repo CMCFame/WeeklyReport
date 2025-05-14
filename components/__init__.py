@@ -32,3 +32,14 @@ from components.enhanced_action_items import render_enhanced_action_items
 from components.user_import import render_user_import
 from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
+
+# Import placeholder components
+from components.placeholder import (
+    render_okr_management,
+    render_team_structure,
+    render_one_on_one_meetings,
+    render_system_settings
+)
+
+# Import dashboard components
+from components.goal_dashboard import render_goal_dashboard
