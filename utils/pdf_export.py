@@ -421,4 +421,56 @@ def export_objective_to_pdf(objective_data):
                 if not isinstance(kr, dict):  # Skip if not a dictionary
                     continue
                     
-                # Get
+                # Get progress
+                try:
+                    progress = int(kr.get('progress', 0))
+                except (ValueError, TypeError):
+                    progress = 0  # Default to 0 if conversion fails
+                
+                # Key result title and progress
+                kr_description = kr.get('description', 'No description')
+                pdf.section_title(f"KR{i+1}: {kr_description}")
+                pdf.cell(30, 5, "Progress:")
+                pdf.add_progress_bar(progress)
+                
+                # Updates
+                updates = kr.get('updates', [])
+                if updates and isinstance(updates, list) and len(updates) > 0:
+                    pdf.section_title("Recent Updates")
+                    
+                    # Get last 3 updates or fewer if there aren't 3
+                    recent_updates = updates[-min(3, len(updates)):]
+                    
+                    for update in recent_updates:
+                        if not isinstance(update, dict):  # Skip if not a dictionary
+                            continue
+                            
+                        # Format update info
+                        update_date = update.get('date', '')
+                        previous = update.get('previous', 0)
+                        current = update.get('current', 0)
+                        note = update.get('note', '')
+                        
+                        update_text = f"{update_date}: {previous}% → {current}%"
+                        if note:
+                            update_text += f"\n{note}"
+                        
+                        pdf.add_list_item(update_text)
+                    
+                    pdf.ln(5)
+        
+        # Last updated
+        if 'last_updated' in objective_data:
+            last_updated = objective_data['last_updated']
+            if last_updated and isinstance(last_updated, str) and len(last_updated) >= 10:
+                pdf.set_font('Arial', 'I', 10)
+                pdf.cell(0, 10, f"Last Updated: {last_updated[:10]}", 0, 1)
+        
+        # Output the PDF to a file
+        pdf.output(file_path, 'F')
+        
+        return file_path
+    except Exception as e:
+        # Log the detailed error for debugging
+        st.error(f"Error generating objective PDF: {str(e)}")
+        raise e
