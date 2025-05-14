@@ -1,4 +1,4 @@
-# app.py - Updated to include weekly report analytics
+# app.py - Updated to include team management features
 
 """
 Weekly Activity Report Application
@@ -23,6 +23,8 @@ from utils.session import (
 from utils.file_ops import save_report
 from utils.user_auth import create_admin_if_needed
 from utils.csv_utils import ensure_project_data_file
+from utils.team_utils import ensure_teams_directory
+from utils.meeting_utils import ensure_meetings_directory
 
 # Import component modules
 from components.user_info import render_user_info
@@ -48,10 +50,10 @@ from components.report_templates import render_report_templates
 from components.team_objectives import render_team_objectives
 from components.goal_dashboard import render_goal_dashboard
 from components.weekly_report_analytics import render_weekly_report_analytics
+from components.team_structure import render_team_structure
+from components.one_on_one_meetings import render_one_on_one_meetings
 from components.placeholder import (
     render_okr_management,
-    render_team_structure,
-    render_one_on_one_meetings,
     render_system_settings
 )
 
@@ -114,8 +116,10 @@ def main():
     # Initialize session state
     init_session_state()
     
-    # Ensure project data file exists
+    # Ensure required directories exist
     ensure_project_data_file()
+    ensure_teams_directory() 
+    ensure_meetings_directory()
     
     # Create admin user if no users exist
     create_admin_if_needed()

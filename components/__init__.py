@@ -1,4 +1,4 @@
-# components/__init__.py - Updated with PDF export
+# components/__init__.py - Updated with team management features
 """Component modules for the Weekly Report app."""
 
 # Import all components for easier access
@@ -36,8 +36,6 @@ from components.objectives_import import render_objectives_import
 # Import placeholder components
 from components.placeholder import (
     render_okr_management,
-    render_team_structure,
-    render_one_on_one_meetings,
     render_system_settings
 )
 
@@ -52,3 +50,7 @@ from components.pdf_export import (
     render_batch_export_reports,
     render_batch_export_objectives
 )
+
+# Import team management components
+from components.team_structure import render_team_structure
+from components.one_on_one_meetings import render_one_on_one_meetings
