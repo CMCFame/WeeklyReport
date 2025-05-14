@@ -1,4 +1,4 @@
-# utils/session.py
+# utils/session.py - Fix for report loading
 """Session state management functions."""
 
 import streamlit as st
@@ -167,7 +167,11 @@ def collect_form_data():
     return data
 
 def load_report_data(report_data):
-    """Load report data into session state with improved error handling."""
+    """Load report data into session state with improved error handling and data validation.
+    
+    Args:
+        report_data (dict): Report data to load
+    """
     if not report_data:
         st.error("No report data to load")
         return
@@ -178,28 +182,64 @@ def load_report_data(report_data):
         st.session_state.reporting_week = report_data.get('reporting_week', '')
         
         # Safely load activities lists
-        st.session_state.current_activities = report_data.get('current_activities', [])
-        if not isinstance(st.session_state.current_activities, list):
+        current_activities = report_data.get('current_activities', [])
+        if not isinstance(current_activities, list):
+            st.warning("Current activities data is not in the expected format. Initializing empty list.")
             st.session_state.current_activities = []
+        else:
+            # Ensure all items in the list are dictionaries
+            validated_activities = []
+            for activity in current_activities:
+                if isinstance(activity, dict):
+                    validated_activities.append(activity)
+                else:
+                    st.warning(f"Skipping invalid current activity: {activity}")
+            st.session_state.current_activities = validated_activities
             
-        st.session_state.upcoming_activities = report_data.get('upcoming_activities', [])
-        if not isinstance(st.session_state.upcoming_activities, list):
+        upcoming_activities = report_data.get('upcoming_activities', [])
+        if not isinstance(upcoming_activities, list):
+            st.warning("Upcoming activities data is not in the expected format. Initializing empty list.")
             st.session_state.upcoming_activities = []
+        else:
+            # Ensure all items in the list are dictionaries
+            validated_upcoming = []
+            for activity in upcoming_activities:
+                if isinstance(activity, dict):
+                    validated_upcoming.append(activity)
+                else:
+                    st.warning(f"Skipping invalid upcoming activity: {activity}")
+            st.session_state.upcoming_activities = validated_upcoming
         
         # Safely load list items, ensuring they're never empty
         accomplishments = report_data.get('accomplishments', [''])
-        st.session_state.accomplishments = accomplishments if accomplishments else ['']
+        if not isinstance(accomplishments, list):
+            st.warning("Accomplishments data is not in the expected format. Initializing with empty item.")
+            st.session_state.accomplishments = ['']
+        else:
+            st.session_state.accomplishments = accomplishments if accomplishments else ['']
         
         followups = report_data.get('followups', [''])
-        st.session_state.followups = followups if followups else ['']
+        if not isinstance(followups, list):
+            st.warning("Followups data is not in the expected format. Initializing with empty item.")
+            st.session_state.followups = ['']
+        else:
+            st.session_state.followups = followups if followups else ['']
         
         nextsteps = report_data.get('nextsteps', [''])
-        st.session_state.nextsteps = nextsteps if nextsteps else ['']
+        if not isinstance(nextsteps, list):
+            st.warning("Next steps data is not in the expected format. Initializing with empty item.")
+            st.session_state.nextsteps = ['']
+        else:
+            st.session_state.nextsteps = nextsteps if nextsteps else ['']
         
         # Load optional sections
         for section in OPTIONAL_SECTIONS:
             content_key = section['content_key']
             content = report_data.get(content_key, '')
+            # Ensure content is a string
+            if not isinstance(content, str):
+                content = str(content) if content is not None else ''
+                st.warning(f"Optional section '{content_key}' data is not in the expected format. Converting to string.")
             st.session_state[content_key] = content
             # Toggle section visibility based on content
             st.session_state[section['key']] = bool(content)
@@ -211,6 +251,18 @@ def load_report_data(report_data):
         st.error(f"Error loading report data: {str(e)}")
         import traceback
         st.error(f"Traceback: {traceback.format_exc()}")
+        
+        # Add some default values to ensure the form is in a usable state
+        if not st.session_state.get('current_activities'):
+            st.session_state.current_activities = []
+        if not st.session_state.get('upcoming_activities'):
+            st.session_state.upcoming_activities = []
+        if not st.session_state.get('accomplishments'):
+            st.session_state.accomplishments = [""]
+        if not st.session_state.get('followups'):
+            st.session_state.followups = [""]
+        if not st.session_state.get('nextsteps'):
+            st.session_state.nextsteps = [""]
 
 def debug_report_data(report_data, prefix=""):
     """Debug function to print report data structure."""
@@ -224,7 +276,13 @@ def debug_report_data(report_data, prefix=""):
         elif isinstance(value, list):
             debug_info.append(f"{prefix}{key}: {type(value)} = list with {len(value)} items")
             if value and len(value) > 0:
-                debug_info.append(f"{prefix}{key}[0]: {type(value[0])} = {value[0]}")
+                # Show type and value of first item
+                first_item = value[0]
+                debug_info.append(f"{prefix}{key}[0]: {type(first_item)} = {first_item}")
+                
+                # Check if we have string items in a list that should contain dictionaries
+                if key in ['current_activities', 'upcoming_activities'] and isinstance(first_item, str):
+                    debug_info.append(f"WARNING: {prefix}{key} contains string items but should contain dictionaries")
         else:
             debug_info.append(f"{prefix}{key}: {type(value)} = {value}")
     

@@ -1,4 +1,4 @@
-# components/report_templates.py
+# components/report_templates.py - Complete fix
 """Report templates component for the Weekly Report app."""
 
 import streamlit as st
@@ -7,6 +7,7 @@ import os
 from datetime import datetime
 from utils import session, file_ops
 from pathlib import Path
+import traceback
 
 def render_report_templates():
     """Render the report templates page focused on using past reports as templates."""
@@ -59,18 +60,26 @@ def render_report_templates():
                 # Show a summary of the report
                 if report.get('current_activities'):
                     st.write(f"**Current Activities:** {len(report.get('current_activities'))} activities")
-                    # Show the first activity title
-                    if report['current_activities']:
+                    # Show the first activity title safely
+                    if report['current_activities'] and isinstance(report['current_activities'][0], dict):
                         st.write(f"- {report['current_activities'][0].get('description', '')[:50]}...")
+                    elif report['current_activities']:
+                        st.write(f"- [Invalid activity format]")
                 
                 if report.get('upcoming_activities'):
                     st.write(f"**Upcoming Activities:** {len(report.get('upcoming_activities'))} planned")
                 
                 if report.get('accomplishments'):
                     st.write(f"**Accomplishments:** {len(report.get('accomplishments'))} items")
-                    # Show the first accomplishment
-                    if report['accomplishments']:
+                    # Show the first accomplishment safely
+                    if report['accomplishments'] and isinstance(report['accomplishments'][0], str):
                         st.write(f"- {report['accomplishments'][0][:50]}...")
+                    elif report['accomplishments']:
+                        try:
+                            # Try to convert to string if it's not already
+                            st.write(f"- {str(report['accomplishments'][0])[:50]}...")
+                        except:
+                            st.write(f"- [Invalid accomplishment format]")
                 
                 # Action buttons
                 col1, col2 = st.columns([3, 1])
@@ -94,7 +103,7 @@ def render_report_templates():
                     st.divider()
 
 def use_report_as_template(report):
-    """Load a past report as a template for a new report.
+    """Load a past report as a template for a new report with enhanced error handling.
     
     Args:
         report (dict): Report data to use as template
@@ -106,33 +115,59 @@ def use_report_as_template(report):
         # Pre-fill basic info
         st.session_state.name = report.get('name', '')
         
-        # Current activities
-        if report.get('current_activities'):
+        # Current activities - verify structure before loading
+        if report.get('current_activities') and isinstance(report.get('current_activities'), list):
             # Deep copy to avoid modifying the original
             st.session_state.current_activities = []
             for activity in report.get('current_activities', []):
-                # Create a copy of the activity
-                new_activity = activity.copy()
-                # Reset progress to show it's a new report
-                new_activity['progress'] = 50  # Set to mid-point as default
-                st.session_state.current_activities.append(new_activity)
+                # Ensure activity is a dictionary
+                if isinstance(activity, dict):
+                    # Create a copy of the activity
+                    new_activity = activity.copy()
+                    # Reset progress to show it's a new report
+                    new_activity['progress'] = 50  # Set to mid-point as default
+                    st.session_state.current_activities.append(new_activity)
+                else:
+                    # Log the issue but don't crash
+                    st.warning(f"Skipped invalid current activity: {activity}")
         
-        # Upcoming activities
-        if report.get('upcoming_activities'):
+        # Upcoming activities - verify structure before loading
+        if report.get('upcoming_activities') and isinstance(report.get('upcoming_activities'), list):
             # Deep copy to avoid modifying the original
             st.session_state.upcoming_activities = []
             for activity in report.get('upcoming_activities', []):
-                st.session_state.upcoming_activities.append(activity.copy())
+                # Ensure activity is a dictionary
+                if isinstance(activity, dict):
+                    st.session_state.upcoming_activities.append(activity.copy())
+                else:
+                    # Log the issue but don't crash
+                    st.warning(f"Skipped invalid upcoming activity: {activity}")
         
         # Accomplishments - empty by default since these will be new
         st.session_state.accomplishments = [""]
         
-        # Action items
-        st.session_state.followups = [""]
-        
+        # Action items - verify structure before loading
         # Copy next steps from previous report to followups in new report
-        if report.get('nextsteps'):
-            st.session_state.followups = [step for step in report.get('nextsteps') if step]
+        if report.get('nextsteps') and isinstance(report.get('nextsteps'), list):
+            valid_steps = []
+            for step in report.get('nextsteps'):
+                if step:  # Skip empty items
+                    if isinstance(step, str):
+                        valid_steps.append(step)
+                    else:
+                        # Try to convert to string
+                        try:
+                            valid_steps.append(str(step))
+                        except:
+                            # Log the issue but don't crash
+                            st.warning(f"Skipped invalid next step: {step}")
+            
+            if valid_steps:
+                st.session_state.followups = valid_steps
+            else:
+                st.session_state.followups = [""]  # Default empty item
+        else:
+            st.session_state.followups = [""]  # Default empty item
         
         # Start with empty next steps
         st.session_state.nextsteps = [""]
@@ -145,7 +180,11 @@ def use_report_as_template(report):
             # Enable the section if it had content in the original report
             if content_key in report and report[content_key]:
                 st.session_state[key] = True
-                st.session_state[content_key] = report[content_key]
+                # Ensure content is a string
+                content = report[content_key]
+                if not isinstance(content, str):
+                    content = str(content) if content is not None else ""
+                st.session_state[content_key] = content
             else:
                 st.session_state[key] = False
                 st.session_state[content_key] = ""
@@ -155,3 +194,16 @@ def use_report_as_template(report):
         
     except Exception as e:
         st.error(f"Error using report as template: {str(e)}")
+        st.error(traceback.format_exc())
+        
+        # Add some default values to ensure the form is in a usable state
+        if not st.session_state.get('current_activities'):
+            st.session_state.current_activities = []
+        if not st.session_state.get('upcoming_activities'):
+            st.session_state.upcoming_activities = []
+        if not st.session_state.get('accomplishments'):
+            st.session_state.accomplishments = [""]
+        if not st.session_state.get('followups'):
+            st.session_state.followups = [""]
+        if not st.session_state.get('nextsteps'):
+            st.session_state.nextsteps = [""]
