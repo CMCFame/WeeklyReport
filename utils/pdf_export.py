@@ -134,7 +134,7 @@ class ReportPDF(FPDF):
             
         self.multi_cell(0, 5, text)
         
-    def add_list_item(self, text, indent=0, bullet='•'):
+    def add_list_item(self, text, indent=0, bullet='-'):  # Changed bullet to '-' character
         """Add a list item.
         
         Args:
@@ -451,7 +451,8 @@ def export_objective_to_pdf(objective_data):
                         current = update.get('current', 0)
                         note = update.get('note', '')
                         
-                        update_text = f"{update_date}: {previous}% → {current}%"
+                        # Replace Unicode arrow with standard ASCII
+                        update_text = f"{update_date}: {previous}% -> {current}%"
                         if note:
                             update_text += f"\n{note}"
                         
