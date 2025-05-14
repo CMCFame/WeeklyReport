@@ -103,20 +103,22 @@ def render_upcoming_meetings(current_user_id, current_user_name, team_member, ca
         # This week
         if this_week:
             st.write("### This Week")
-            for meeting in this_week:
-                render_meeting_card(meeting, current_user_id, can_manage)
+            for i, meeting in enumerate(this_week):
+                render_meeting_card(meeting, current_user_id, can_manage, i)
         
         # Next week
         if next_week:
             st.write("### Next Week")
-            for meeting in next_week:
-                render_meeting_card(meeting, current_user_id, can_manage)
+            for i, meeting in enumerate(next_week):
+                # Use offset for indices to ensure uniqueness
+                render_meeting_card(meeting, current_user_id, can_manage, i + 100)
         
         # Later
         if later:
             st.write("### Later")
-            for meeting in later:
-                render_meeting_card(meeting, current_user_id, can_manage)
+            for i, meeting in enumerate(later):
+                # Use offset for indices to ensure uniqueness
+                render_meeting_card(meeting, current_user_id, can_manage, i + 200)
     else:
         st.info("No upcoming meetings scheduled. Use the form above to schedule a new meeting.")
 
@@ -166,8 +168,9 @@ def render_all_meetings(current_user_id, current_user_name, team_member, can_man
     if sorted_meetings:
         st.write(f"Showing {len(sorted_meetings)} meetings:")
         
-        for meeting in sorted_meetings:
-            render_meeting_card(meeting, current_user_id, can_manage)
+        for i, meeting in enumerate(sorted_meetings):
+            # Use an offset (1000) to ensure keys don't overlap with upcoming meetings
+            render_meeting_card(meeting, current_user_id, can_manage, i + 1000)
     else:
         st.info("No meetings match the selected filters.")
 
@@ -522,13 +525,14 @@ def render_new_meeting_form(current_user_id, current_user_name, team_member, can
                 st.success(f"Meeting scheduled for {meeting_date.strftime('%Y-%m-%d')}!")
                 st.rerun()
 
-def render_meeting_card(meeting, current_user_id, can_manage):
+def render_meeting_card(meeting, current_user_id, can_manage, card_index=0):
     """Render a card for a meeting.
     
     Args:
         meeting (dict): Meeting data
         current_user_id (str): Current user ID
         can_manage (bool): Whether user has management permissions
+        card_index (int): Index of the card for unique key generation
     """
     meeting_id = meeting.get("id")
     manager_name = meeting.get("manager_name", "Unknown")
@@ -567,8 +571,9 @@ def render_meeting_card(meeting, current_user_id, can_manage):
             st.markdown(f"<div style='background-color:{status_color};color:white;padding:3px 8px;border-radius:10px;display:inline-block;margin-top:10px;'>{status}</div>", unsafe_allow_html=True)
         
         with col3:
-            # View/Edit button
-            if st.button("View/Edit", key=f"view_{meeting_id}"):
+            # View/Edit button - ensure unique key with card_index
+            unique_button_key = f"view_{card_index}_{meeting_id}"
+            if st.button("View/Edit", key=unique_button_key):
                 st.session_state.meeting_to_view = meeting_id
                 st.rerun()
     
@@ -701,8 +706,7 @@ def render_meeting_details(meeting, current_user_id, can_manage):
                 
                 with col3:
                     priority = st.selectbox("Priority", ["High", "Medium", "Low"], key=f"new_item_priority_{meeting_id}")
-                
-                add_item = st.form_submit_button("Add Action Item")
+                    add_item = st.form_submit_button("Add Action Item")
                 
                 if add_item and item_description:
                     if add_action_item_to_meeting(
@@ -879,12 +883,12 @@ def render_action_item_list(items, current_user_id):
             item_id = item.get("id")
             
             # Form to update status
-            with st.form(f"update_action_item_status_{i}"):
+            with st.form(f"update_action_item_status_{i}_{meeting_id}_{item_id}"):
                 new_status = st.selectbox(
                     "Update Status",
                     ["Pending", "In Progress", "Completed", "Cancelled"],
                     index=["Pending", "In Progress", "Completed", "Cancelled"].index(item.get("status", "Pending")),
-                    key=f"action_status_{i}"
+                    key=f"action_status_{i}_{meeting_id}_{item_id}"
                 )
                 
                 update_btn = st.form_submit_button("Update Status")
