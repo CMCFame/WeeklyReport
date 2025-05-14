@@ -211,22 +211,24 @@ def render_action_items(current_user_id, current_user_name, team_member, can_man
         # Pending items
         if pending and (selected_status == "All" or selected_status == "Pending"):
             with st.expander("Pending", expanded=True):
-                render_action_item_list(pending, current_user_id)
+                render_action_item_list(pending, current_user_id, 1000)
         
         # In Progress items
         if in_progress and (selected_status == "All" or selected_status == "In Progress"):
             with st.expander("In Progress", expanded=True):
-                render_action_item_list(in_progress, current_user_id)
+                render_action_item_list(in_progress, current_user_id, 2000)
         
         # Completed items
         if completed and (selected_status == "All" or selected_status == "Completed"):
             with st.expander("Completed", expanded=False):
-                render_action_item_list(completed, current_user_id)
+                render_action_item_list(completed, current_user_id, 3000)
         
         # Other items
         if other and selected_status == "All":
             with st.expander("Other", expanded=False):
-                render_action_item_list(other, current_user_id)
+                render_action_item_list(other, current_user_id, 4000)
+        
+        # Rest of the function stays the same...
         
         # Add to weekly report button
         st.divider()
@@ -581,7 +583,7 @@ def render_meeting_card(meeting, current_user_id, can_manage, card_index=0):
     
     # Show meeting details if selected
     if hasattr(st.session_state, "meeting_to_view") and st.session_state.meeting_to_view == meeting_id:
-        render_meeting_details(meeting, current_user_id, can_manage)
+        render_meeting_details(meeting, current_user_id, can_manage, card_index)
 
 def render_meeting_details(meeting, current_user_id, can_manage):
     """Render detailed view of a meeting.
@@ -820,12 +822,13 @@ def render_meeting_details(meeting, current_user_id, can_manage):
             delattr(st.session_state, "meeting_to_view")
             st.rerun()
 
-def render_action_item_list(items, current_user_id):
+def render_action_item_list(items, current_user_id, list_index=0):
     """Render a list of action items.
     
     Args:
         items (list): List of action items
         current_user_id (str): Current user ID
+        list_index (int): Index for unique key generation
     """
     if not items:
         st.info("No action items in this category.")
@@ -883,12 +886,12 @@ def render_action_item_list(items, current_user_id):
             item_id = item.get("id")
             
             # Form to update status
-            with st.form(f"update_action_item_status_{i}_{meeting_id}_{item_id}"):
+            with st.form(f"update_action_item_status_{list_index}_{i}_{meeting_id}_{item_id}"):
                 new_status = st.selectbox(
                     "Update Status",
                     ["Pending", "In Progress", "Completed", "Cancelled"],
                     index=["Pending", "In Progress", "Completed", "Cancelled"].index(item.get("status", "Pending")),
-                    key=f"action_status_{i}_{meeting_id}_{item_id}"
+                    key=f"action_status_{list_index}_{i}_{meeting_id}_{item_id}"
                 )
                 
                 update_btn = st.form_submit_button("Update Status")
