@@ -72,11 +72,11 @@ def render_placeholder(title, description, coming_soon=True):
             """)
 
 def render_report_templates():
-    """Render the report templates page placeholder."""
-    render_placeholder(
-        "Report Templates",
-        "Create and manage templates for weekly reports to streamline the reporting process."
-    )
+    """Render the report templates page."""
+    # This function is just a wrapper now that calls our actual implementation
+    # We need to keep it for backward compatibility
+    from components.report_templates import render_report_templates as render_real_report_templates
+    render_real_report_templates()
 
 def render_team_objectives():
     """Render the team objectives page."""

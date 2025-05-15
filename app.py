@@ -46,8 +46,8 @@ from components.user_import import render_user_import
 from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
 from components.navigation import render_navigation, get_current_page
+from components.report_templates import render_report_templates
 from components.placeholder import (
-    render_report_templates,
     render_system_settings
 )
 from components.weekly_report_analytics import render_weekly_report_analytics

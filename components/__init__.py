@@ -34,6 +34,7 @@ from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
 
 # Import real implementations of previously placeholder components
+from components.report_templates import render_report_templates as render_real_report_templates
 from components.team_objectives import render_team_objectives as render_real_team_objectives
 from components.goal_dashboard import render_goal_dashboard as render_real_goal_dashboard
 from components.okr_management import render_okr_management as render_real_okr_management

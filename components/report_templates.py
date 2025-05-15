@@ -1,3 +1,4 @@
+
 # components/report_templates.py
 """Report templates component for the Weekly Report app."""
 
