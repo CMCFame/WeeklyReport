@@ -46,16 +46,18 @@ from components.user_import import render_user_import
 from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
 from components.navigation import render_navigation, get_current_page
-from components.report_templates import render_report_templates
-from components.team_objectives import render_team_objectives
-from components.goal_dashboard import render_goal_dashboard
+from components.placeholder import (
+    render_report_templates,
+    render_team_objectives,
+    render_goal_dashboard,
+    render_okr_management,
+    render_team_structure,
+    render_one_on_one_meetings,
+    render_system_settings
+)
 from components.weekly_report_analytics import render_weekly_report_analytics
 from components.team_structure import render_team_structure
 from components.one_on_one_meetings import render_one_on_one_meetings
-from components.placeholder import (
-    render_okr_management,
-    render_system_settings
-)
 from components.advanced_analytics import render_advanced_analytics
 from components.batch_export import render_batch_export
 
@@ -176,7 +178,7 @@ def render_selected_page(page_name):
     elif page_name == "Goal Dashboard":
         render_goal_dashboard()
     elif page_name == "OKR Management":
-        render_okr_management()  # Using our new component instead of the placeholder
+        render_okr_management()  # This will call our placeholder which now calls the real implementation
     elif page_name == "Import Objectives":
         render_objectives_import()
     
