@@ -119,6 +119,18 @@ def main():
     # Initialize session state
     init_session_state()
     
+    # Handle cancellation request
+    if st.session_state.get('cancel_editing', False):
+        # Reset form safely at the beginning of the app run
+        reset_form()
+        st.session_state.editing_report = False
+        # Reset the flag
+        st.session_state.cancel_editing = False
+        # Go back to past reports
+        st.session_state.nav_page = "Past Reports"
+        st.session_state.nav_section = "reporting"
+        st.rerun()
+    
     # Ensure required directories exist
     ensure_project_data_file()
     ensure_teams_directory() 
@@ -319,12 +331,9 @@ def render_form_actions(is_editing=False):
         with col2:
             # Cancel editing button
             if st.button('Cancel Editing', use_container_width=True):
-                # Reset form and clear editing flag
-                reset_form()
-                st.session_state.editing_report = False
-                # Go back to past reports
-                st.session_state.nav_page = "Past Reports"
-                st.session_state.nav_section = "reporting"
+                # Mark for cancellation instead of immediate reset
+                # This avoids modifying session state after widgets render
+                st.session_state.cancel_editing = True
                 st.rerun()
 
         with col3:

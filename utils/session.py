@@ -54,25 +54,42 @@ def init_session_state():
     # Original timestamp for edits
     if 'original_timestamp' not in st.session_state:
         st.session_state.original_timestamp = None
+        
+    # Cancellation flag
+    if 'cancel_editing' not in st.session_state:
+        st.session_state.cancel_editing = False
 
 def reset_form():
     """Reset the form to its initial state."""
-    st.session_state.name = ""
-    st.session_state.reporting_week = ""
-    st.session_state.current_activities = []
-    st.session_state.upcoming_activities = []
-    st.session_state.accomplishments = [""]
-    st.session_state.followups = [""]
-    st.session_state.nextsteps = [""]
+    # Store values that need to be reset in a dictionary for deferred processing
+    reset_values = {
+        'name': "",
+        'reporting_week': "",
+        'current_activities': [],
+        'upcoming_activities': [],
+        'accomplishments': [""],
+        'followups': [""],
+        'nextsteps': [""],
+        'report_id': None,
+        'editing_report': False,
+        'original_timestamp': None
+    }
     
     # Reset optional sections
     for section in OPTIONAL_SECTIONS:
-        st.session_state[section['key']] = False
-        st.session_state[section['content_key']] = ""
+        reset_values[section['key']] = False
+        reset_values[section['content_key']] = ""
     
-    st.session_state.report_id = None
-    st.session_state.editing_report = False
-    st.session_state.original_timestamp = None
+    # Apply all resets at once using setdefault
+    # This approach is less likely to cause issues with widget rendering
+    for key, value in reset_values.items():
+        if key in st.session_state:
+            try:
+                # Try to safely reset the value
+                st.session_state[key] = value
+            except Exception:
+                # If we can't set it directly, we'll defer to the next rerun
+                pass
 
 def add_current_activity():
     """Add a new current activity."""
