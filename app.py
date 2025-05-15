@@ -259,7 +259,7 @@ def render_weekly_report_page():
     """Render the main weekly report form."""
     # Header
     st.title('📋 Weekly Activity Report')
-    st.write('Quickly document your week\'s work in under 5 minutes')
+    st.write('Use the sections below to document your week\'s work')
 
     # Progress bar
     completion_percentage = calculate_completion_percentage()
