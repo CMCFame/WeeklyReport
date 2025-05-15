@@ -1,4 +1,4 @@
-# components/__init__.py - Updated to maintain backwards compatibility
+# components/__init__.py
 """Component modules for the Weekly Report app."""
 
 # Import all components for easier access
@@ -33,9 +33,14 @@ from components.user_import import render_user_import
 from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
 
-# Import placeholder components
-# Keep importing from placeholder.py even though we've implemented the real component
-# This maintains backwards compatibility
+# Import real implementations of previously placeholder components
+from components.team_objectives import render_team_objectives as render_real_team_objectives
+from components.goal_dashboard import render_goal_dashboard as render_real_goal_dashboard
+from components.okr_management import render_okr_management as render_real_okr_management
+from components.team_structure import render_team_structure as render_real_team_structure
+from components.one_on_one_meetings import render_one_on_one_meetings as render_real_one_on_one_meetings
+
+# Import placeholders (these now call the real implementations for backward compatibility)
 from components.placeholder import (
     render_report_templates,
     render_team_objectives,

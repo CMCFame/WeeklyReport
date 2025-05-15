@@ -1,4 +1,4 @@
-# components/placeholder.py - Maintaining all required imports
+# components/placeholder.py
 """Placeholder components for pages not yet implemented."""
 
 import streamlit as st
@@ -79,18 +79,18 @@ def render_report_templates():
     )
 
 def render_team_objectives():
-    """Render the team objectives page placeholder."""
-    render_placeholder(
-        "Team Objectives",
-        "Set, track, and manage team objectives and key results (OKRs)."
-    )
+    """Render the team objectives page."""
+    # This function is just a wrapper now that calls our actual implementation
+    # We need to keep it for backward compatibility
+    from components.team_objectives import render_team_objectives as render_real_team_objectives
+    render_real_team_objectives()
 
 def render_goal_dashboard():
-    """Render the goal dashboard page placeholder."""
-    render_placeholder(
-        "Goal Dashboard",
-        "View progress toward individual and team goals with visual dashboards."
-    )
+    """Render the goal dashboard page."""
+    # This function is just a wrapper now that calls our actual implementation
+    # We need to keep it for backward compatibility
+    from components.goal_dashboard import render_goal_dashboard as render_real_goal_dashboard
+    render_real_goal_dashboard()
 
 def render_okr_management():
     """Render the OKR management page placeholder."""
