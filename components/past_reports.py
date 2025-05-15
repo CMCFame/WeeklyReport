@@ -1,11 +1,9 @@
-# components/past_reports.py - Fix for report loading error
-
+# components/past_reports.py - Updated with PDF export
 """Past reports component for the Weekly Report app."""
 
 import streamlit as st
 from utils import file_ops, session
 from components.pdf_export import render_report_export_button, render_batch_export_reports
-import traceback
 
 def render_past_reports():
     """Render the past reports view.
@@ -87,12 +85,6 @@ def render_report_details(report, index):
         if report.get('current_activities'):
             st.subheader('Current Activities')
             for activity in report['current_activities']:
-                # Make sure activity is a dictionary
-                if not isinstance(activity, dict):
-                    # Skip this item or display a warning
-                    st.warning(f"Found invalid activity data: {activity}")
-                    continue
-                    
                 # Include project and milestone if they exist
                 project_info = ""
                 if activity.get('project'):
@@ -110,12 +102,6 @@ def render_report_details(report, index):
         if report.get('upcoming_activities'):
             st.subheader('Upcoming Activities')
             for activity in report['upcoming_activities']:
-                # Make sure activity is a dictionary
-                if not isinstance(activity, dict):
-                    # Skip this item or display a warning
-                    st.warning(f"Found invalid upcoming activity data: {activity}")
-                    continue
-                    
                 # Include project and milestone if they exist
                 project_info = ""
                 if activity.get('project'):
