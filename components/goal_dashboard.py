@@ -580,21 +580,27 @@ def render_objective_table(objectives, section_prefix="summary"):
     # Add option to view detailed objective
     st.write("Click on an objective to view details:")
     
-    # Dropdown to select objective with unique key using section_prefix
+    # Generate a unique key based on all IDs
+    select_obj_key = f"{section_prefix}_select_obj_{hash(tuple(df['ID'].tolist() if not df.empty else ['empty']))}"
+    
+    # Dropdown to select objective with unique key
     selected_obj_title = st.selectbox(
         "Select Objective",
         options=df["Title"].tolist(),
-        key=f"{section_prefix}_select_obj_{hash(tuple(df['ID']))}"
+        key=select_obj_key
     )
     
     # Find the selected objective
-    selected_obj_id = df[df["Title"] == selected_obj_title]["ID"].iloc[0]
-    selected_obj = next((obj for obj in objectives if obj.get('id') == selected_obj_id), None)
-    
-    if selected_obj:
-        # Use a subheader instead of an expander
-        st.subheader("Objective Details")
-        render_objective_details(selected_obj, section_prefix)
+    if selected_obj_title and len(df[df["Title"] == selected_obj_title]) > 0:
+        selected_obj_id = df[df["Title"] == selected_obj_title]["ID"].iloc[0]
+        selected_obj = next((obj for obj in objectives if obj.get('id') == selected_obj_id), None)
+        
+        if selected_obj:
+            # Use a subheader instead of an expander
+            st.subheader("Objective Details")
+            # Create a unique key for details based on ID
+            detail_prefix = f"{section_prefix}_details_{selected_obj_id}"
+            render_objective_details(selected_obj, detail_prefix)
 
 def render_objective_details(objective, section_prefix="summary"):
     """Render detailed view of a single objective.
@@ -643,8 +649,9 @@ def render_objective_details(objective, section_prefix="summary"):
         
         # Show updates if available
         if 'updates' in kr and kr['updates']:
-            # Using a separate expander with a unique key
-            with st.expander("View Updates", key=f"{section_prefix}_updates_{objective.get('id')}_{i}"):
+            # Using a unique key that combines all relevant identifiers
+            update_key = f"{section_prefix}_updates_{objective.get('id', 'unknown')}_{i}_{hash(kr.get('description', ''))}"
+            with st.expander("View Updates", key=update_key):
                 for update in kr['updates']:
                     st.write(f"**{update.get('date', '')}:** {update.get('previous', 0):.0f}% → {update.get('current', 0):.0f}%")
                     if update.get('note'):
@@ -811,7 +818,7 @@ def get_teams():
             except:
                 pass
         
-        # Extract unique team names
+        ## Extract unique team names
         teams = set()
         for obj in objectives:
             if obj.get('level') == 'team' and obj.get('team'):
