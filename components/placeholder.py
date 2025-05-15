@@ -1,4 +1,4 @@
-# components/placeholder.py
+# components/placeholder.py - Updated version without OKR Management placeholder
 """Placeholder components for pages not yet implemented."""
 
 import streamlit as st
@@ -33,17 +33,7 @@ def render_placeholder(title, description, coming_soon=True):
     
     # Expand with more details depending on the feature
     with st.expander("What to expect"):
-        if "Objectives" in title or "Goal" in title or "OKR" in title:
-            st.write("""
-            ### Goal Setting and Tracking Features
-            
-            * Create and manage OKRs (Objectives and Key Results)
-            * Track progress toward goals
-            * Connect team and individual goals
-            * View dashboards showing goal achievement
-            * Generate reports on goal progress
-            """)
-        elif "Template" in title:
+        if "Template" in title:
             st.write("""
             ### Report Templates Features
             
@@ -92,12 +82,7 @@ def render_goal_dashboard():
         "View progress toward individual and team goals with visual dashboards."
     )
 
-def render_okr_management():
-    """Render the OKR management page placeholder."""
-    render_placeholder(
-        "OKR Management",
-        "Manage and track progress on Objectives and Key Results (OKRs)."
-    )
+# Removed the render_okr_management function since we've implemented it
 
 def render_team_structure():
     """Render the team structure page placeholder."""

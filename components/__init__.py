@@ -1,4 +1,4 @@
-# components/__init__.py
+# components/__init__.py - Updated version with OKR Management component
 """Component modules for the Weekly Report app."""
 
 # Import all components for easier access
@@ -35,9 +35,11 @@ from components.objectives_import import render_objectives_import
 
 # Import placeholder components
 from components.placeholder import (
-    render_okr_management,
     render_system_settings
 )
+
+# Import OKR Management component
+from components.okr_management import render_okr_management
 
 # Import dashboard components
 from components.goal_dashboard import render_goal_dashboard
@@ -56,3 +58,4 @@ from components.pdf_export import (
 # Import team management components
 from components.team_structure import render_team_structure
 from components.one_on_one_meetings import render_one_on_one_meetings
+from components.team_objectives import render_team_objectives

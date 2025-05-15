@@ -176,7 +176,7 @@ def render_selected_page(page_name):
     elif page_name == "Goal Dashboard":
         render_goal_dashboard()
     elif page_name == "OKR Management":
-        render_okr_management()
+        render_okr_management()  # Using our new component instead of the placeholder
     elif page_name == "Import Objectives":
         render_objectives_import()
     
