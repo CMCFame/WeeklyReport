@@ -7,6 +7,7 @@ import os
 import traceback
 from pathlib import Path
 import streamlit as st
+from datetime import datetime
 
 def ensure_data_directory():
     """Ensure the data directory exists."""
@@ -29,6 +30,19 @@ def save_report(report_data):
         # Add user_id from session state if authenticated
         if st.session_state.get("authenticated") and st.session_state.get("user_info"):
             report_data['user_id'] = st.session_state.user_info.get("id")
+            
+        # Check if this is an update to an existing report
+        is_update = st.session_state.get('editing_report', False)
+        
+        # Handle timestamp based on whether it's an update or a new report
+        if is_update and 'original_timestamp' in st.session_state:
+            # Preserve the original timestamp
+            report_data['timestamp'] = st.session_state.original_timestamp
+            # Add last_updated field
+            report_data['last_updated'] = datetime.now().isoformat()
+        else:
+            # New report, set the timestamp
+            report_data['timestamp'] = datetime.now().isoformat()
             
         with open(f"data/reports/{report_id}.json", 'w') as f:
             json.dump(report_data, f, indent=2)

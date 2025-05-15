@@ -46,6 +46,14 @@ def init_session_state():
     # Report ID
     if 'report_id' not in st.session_state:
         st.session_state.report_id = None
+    
+    # Editing flag
+    if 'editing_report' not in st.session_state:
+        st.session_state.editing_report = False
+    
+    # Original timestamp for edits
+    if 'original_timestamp' not in st.session_state:
+        st.session_state.original_timestamp = None
 
 def reset_form():
     """Reset the form to its initial state."""
@@ -63,6 +71,8 @@ def reset_form():
         st.session_state[section['content_key']] = ""
     
     st.session_state.report_id = None
+    st.session_state.editing_report = False
+    st.session_state.original_timestamp = None
 
 def add_current_activity():
     """Add a new current activity."""
@@ -206,6 +216,10 @@ def load_report_data(report_data):
         
         # Set report ID
         st.session_state.report_id = report_data.get('id')
+        
+        # Store original timestamp for updates
+        if 'timestamp' in report_data:
+            st.session_state.original_timestamp = report_data.get('timestamp')
         
     except Exception as e:
         st.error(f"Error loading report data: {str(e)}")

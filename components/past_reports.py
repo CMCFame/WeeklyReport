@@ -1,4 +1,4 @@
-# components/past_reports.py - Updated with PDF export
+# components/past_reports.py - Updated with edit functionality
 """Past reports component for the Weekly Report app."""
 
 import streamlit as st
@@ -79,6 +79,11 @@ def render_report_details(report, index):
         st.write(f"**Name:** {report.get('name', 'Anonymous')}")
         st.write(f"**Reporting Week:** {report.get('reporting_week', 'Unknown')}")
         st.write(f"**Submitted:** {report.get('timestamp', '')[:19].replace('T', ' ')}")
+        
+        # Add last updated info if available
+        if report.get('last_updated'):
+            st.write(f"**Last Updated:** {report.get('last_updated', '')[:19].replace('T', ' ')}")
+        
         st.write(f"**Status:** {report.get('status', 'submitted').capitalize()}")
         
         # Current Activities
@@ -169,8 +174,16 @@ def render_report_details(report, index):
             render_report_export_button(report, button_text="Export as PDF", key_suffix=str(index))
         
         with col3:
-            # Do nothing, keep for layout
-            pass
+            # Add Edit button
+            if st.button('Edit Report', key=f"edit_{index}", use_container_width=True):
+                # Load report data into session state
+                session.load_report_data(report)
+                # Set a flag to indicate we're editing a report
+                st.session_state.editing_report = True
+                # Navigate to the weekly report page
+                st.session_state.nav_page = "Weekly Report"
+                st.session_state.nav_section = "reporting"
+                st.rerun()
         
         with col4:
             if st.button('Delete Report', key=f"delete_{index}", use_container_width=True):
