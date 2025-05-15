@@ -1,4 +1,4 @@
-# components/__init__.py - Updated version with OKR Management component
+# components/__init__.py - Updated to maintain backwards compatibility
 """Component modules for the Weekly Report app."""
 
 # Import all components for easier access
@@ -34,15 +34,19 @@ from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
 
 # Import placeholder components
+# Keep importing from placeholder.py even though we've implemented the real component
+# This maintains backwards compatibility
 from components.placeholder import (
+    render_report_templates,
+    render_team_objectives,
+    render_goal_dashboard,
+    render_okr_management,
+    render_team_structure,
+    render_one_on_one_meetings,
     render_system_settings
 )
 
-# Import OKR Management component
-from components.okr_management import render_okr_management
-
 # Import dashboard components
-from components.goal_dashboard import render_goal_dashboard
 from components.weekly_report_analytics import render_weekly_report_analytics
 from components.advanced_analytics import render_advanced_analytics
 from components.batch_export import render_batch_export
@@ -54,8 +58,3 @@ from components.pdf_export import (
     render_batch_export_reports,
     render_batch_export_objectives
 )
-
-# Import team management components
-from components.team_structure import render_team_structure
-from components.one_on_one_meetings import render_one_on_one_meetings
-from components.team_objectives import render_team_objectives
