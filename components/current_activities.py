@@ -24,16 +24,43 @@ def render_current_activities():
         activity_title = activity.get('description', '')[:30] 
         activity_title = f"{activity_title}..." if activity_title else "New Activity"
         
-        with st.expander(f"Activity {i+1}: {activity_title}", expanded=i==0):
-            render_current_activity_form(i, activity)
+        # Create a container for each activity instead of an expander
+        with st.container():
+            st.subheader(f"Activity {i+1}: {activity_title}")
+            
+            # Track if we should show additional details for this activity
+            show_details_key = f"show_details_{i}"
+            if show_details_key not in st.session_state:
+                st.session_state[show_details_key] = False
+                
+            # Render the activity form
+            render_current_activity_form(i, activity, st.session_state[show_details_key])
+            
+            # Toggle button for additional details
+            if st.session_state[show_details_key]:
+                if st.button("Hide Additional Details", key=f"hide_details_{i}"):
+                    st.session_state[show_details_key] = False
+                    st.rerun()
+            else:
+                if st.button("Show Additional Details", key=f"show_details_{i}"):
+                    st.session_state[show_details_key] = True
+                    st.rerun()
+                    
+            st.divider()  # Add a divider between activities
     
     # Add activity button
     if st.button('+ Add Another Activity', use_container_width=True):
         session.add_current_activity()
         st.rerun()
 
-def render_current_activity_form(index, activity):
-    """Render form fields for a current activity with progressive disclosure."""
+def render_current_activity_form(index, activity, show_additional_details=False):
+    """Render form fields for a current activity with progressive disclosure.
+    
+    Args:
+        index (int): Activity index
+        activity (dict): Activity data
+        show_additional_details (bool): Whether to show additional details
+    """
     # Get username for project filtering
     username = ""
     if st.session_state.get("user_info"):
@@ -112,9 +139,11 @@ def render_current_activity_form(index, activity):
     
     session.update_current_activity(index, 'progress', progress)
     
-    # Advanced Fields Section (collapsed by default)
-    # ---------------------------------------------
-    with st.expander("Additional Details", expanded=False):
+    # Advanced Fields Section (shown only when requested)
+    # -------------------------------------------------
+    if show_additional_details:
+        st.markdown("### Additional Details")
+        
         # First row of additional details: Milestone and Customer
         col_adv1, col_adv2 = st.columns(2)
         
