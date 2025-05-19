@@ -5,7 +5,6 @@
 PRIORITY_OPTIONS = ["High", "Medium", "Low"]
 STATUS_OPTIONS = ["Not Started", "In Progress", "Blocked", "Completed"]
 BILLABLE_OPTIONS = ["", "Yes", "No"]
-RECURRENCE_OPTIONS = ["Daily", "Weekly", "Monthly"]
 
 # Current activities default
 DEFAULT_CURRENT_ACTIVITY = {
@@ -17,11 +16,7 @@ DEFAULT_CURRENT_ACTIVITY = {
     'billable': '',
     'deadline': '',
     'progress': 50,
-    'description': '',
-    'show_advanced_options': False,
-    'has_deadline': False,
-    'is_recurring': False,
-    'recurrence': 'Weekly'
+    'description': ''
 }
 
 # Upcoming activities default
@@ -30,26 +25,8 @@ DEFAULT_UPCOMING_ACTIVITY = {
     'milestone': '',
     'priority': 'Medium',
     'expected_start': '',  # This will be set to next Monday dynamically
-    'description': '',
-    'show_advanced_options': False,
-    'has_start_date': True,
-    'is_recurring': False,
-    'recurrence': 'Weekly'
+    'description': ''
 }
-
-# Optional sections
-OPTIONAL_SECTIONS = [
-    {'key': 'show_challenges', 'label': 'Challenges & Assistance', 'icon': '⚠️', 
-     'content_key': 'challenges', 'description': 'What challenges are you facing? What help do you need?'},
-    {'key': 'show_slow_projects', 'label': 'Slow-Moving Projects', 'icon': '🐢', 
-     'content_key': 'slow_projects', 'description': 'Are any projects moving slower than expected? Why?'},
-    {'key': 'show_other_topics', 'label': 'Other Discussion Topics', 'icon': '💬', 
-     'content_key': 'other_topics', 'description': 'Anything else that needs to be discussed?'},
-    {'key': 'show_key_accomplishments', 'label': 'Key Accomplishments', 'icon': '🏆', 
-     'content_key': 'key_accomplishments', 'description': 'What are you most proud of accomplishing this week?'},
-    {'key': 'show_concerns', 'label': 'Concerns', 'icon': '⁉️', 
-     'content_key': 'concerns', 'description': 'Any concerns about upcoming work or deadlines?'}
-]
 
 # Optional sections
 OPTIONAL_SECTIONS = [

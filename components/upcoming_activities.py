@@ -37,28 +37,13 @@ def render_upcoming_activities():
         st.rerun()
 
 def render_upcoming_activity_form(index, activity):
-    """Render form fields for an upcoming activity.
-    
-    Args:
-        index (int): Activity index in the session state
-        activity (dict): Activity data
-    """
+    """Render form fields for an upcoming activity."""
     # Get username for project filtering
     username = ""
     if st.session_state.get("user_info"):
         username = st.session_state.user_info.get("username", "")
     
-    # Description (always shown)
-    description = st.text_area(
-        'Description', 
-        value=activity.get('description', ''), 
-        key=f"up_desc_{index}",
-        height=100,
-        help="Describe what you're planning to work on"
-    )
-    session.update_upcoming_activity(index, 'description', description)
-    
-    # First row: Project and Milestone (essential information)
+    # First row: Project and Milestone
     col_proj, col_mile = st.columns(2)
     
     with col_proj:
@@ -111,30 +96,19 @@ def render_upcoming_activity_form(index, activity):
         )
         session.update_upcoming_activity(index, 'milestone', milestone)
     
-    # Second row: Priority (essential information)
-    priority = st.selectbox(
-        'Priority', 
-        options=PRIORITY_OPTIONS, 
-        index=PRIORITY_OPTIONS.index(activity.get('priority', 'Medium')) if activity.get('priority') in PRIORITY_OPTIONS else 1,
-        key=f"up_prio_{index}"
-    )
-    session.update_upcoming_activity(index, 'priority', priority)
+    # Second row: Priority and Expected Start
+    col1, col2 = st.columns(2)
     
-    # Show advanced options toggle for progressive disclosure
-    if 'show_advanced_options' not in activity:
-        activity['show_advanced_options'] = False
+    with col1:
+        priority = st.selectbox(
+            'Priority', 
+            options=PRIORITY_OPTIONS, 
+            index=PRIORITY_OPTIONS.index(activity.get('priority', 'Medium')) if activity.get('priority') in PRIORITY_OPTIONS else 1,
+            key=f"up_prio_{index}"
+        )
+        session.update_upcoming_activity(index, 'priority', priority)
     
-    show_advanced = st.checkbox(
-        'Show advanced options',
-        value=activity.get('show_advanced_options', False),
-        key=f"up_show_adv_{index}"
-    )
-    session.update_upcoming_activity(index, 'show_advanced_options', show_advanced)
-    
-    # Advanced options (shown only if toggle is on)
-    if show_advanced:
-        st.write("#### Expected Start Date")
-        
+    with col2:
         # Handle date conversion for expected start
         expected_start_date = None
         expected_start = activity.get('expected_start', session.get_next_monday())
@@ -145,43 +119,23 @@ def render_upcoming_activity_form(index, activity):
             except ValueError:
                 expected_start_date = None
         
-        # Option to set a start date
-        has_start_date = st.checkbox(
-            'Set a start date',
-            value=activity.get('has_start_date', True),
-            key=f"up_has_start_{index}"
+        start_date = st.date_input(
+            'Expected Start', 
+            value=expected_start_date,
+            key=f"up_start_{index}"
         )
-        session.update_upcoming_activity(index, 'has_start_date', has_start_date)
-        
-        if has_start_date:
-            start_date = st.date_input(
-                'Expected Start', 
-                value=expected_start_date,
-                key=f"up_start_{index}"
-            )
-            session.update_upcoming_activity(index, 'expected_start', start_date.strftime('%Y-%m-%d'))
-        
-        # Recurrence options
-        st.write("#### Recurrence")
-        is_recurring = st.checkbox(
-            'This is a recurring activity',
-            value=activity.get('is_recurring', False),
-            key=f"up_is_recurring_{index}"
-        )
-        session.update_upcoming_activity(index, 'is_recurring', is_recurring)
-        
-        if is_recurring:
-            recurrence_options = ["Daily", "Weekly", "Monthly"]
-            recurrence = st.selectbox(
-                'Recurrence Pattern',
-                options=recurrence_options,
-                index=recurrence_options.index(activity.get('recurrence', 'Weekly')) if activity.get('recurrence') in recurrence_options else 1,
-                key=f"up_recurrence_{index}"
-            )
-            session.update_upcoming_activity(index, 'recurrence', recurrence)
+        session.update_upcoming_activity(index, 'expected_start', start_date.strftime('%Y-%m-%d'))
+    
+    # Description
+    description = st.text_area(
+        'Description', 
+        value=activity.get('description', ''), 
+        key=f"up_desc_{index}",
+        height=100
+    )
+    session.update_upcoming_activity(index, 'description', description)
     
     # Remove button
-    st.divider()
     if st.button('Remove Activity', key=f"remove_up_{index}"):
         session.remove_upcoming_activity(index)
         st.rerun()
