@@ -16,9 +16,7 @@ DEFAULT_CURRENT_ACTIVITY = {
     'billable': '',
     'deadline': '',
     'progress': 50,
-    'description': '',
-    'is_recurring': False,
-    'recurrence_type': 'Weekly'
+    'description': ''
 }
 
 # Upcoming activities default

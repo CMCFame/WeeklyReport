@@ -9,8 +9,6 @@ from components.accomplishments import render_accomplishments
 from components.action_items import render_action_items
 from components.optional_sections import render_optional_section_toggles, render_optional_section, render_all_optional_sections
 from components.past_reports import render_past_reports
-
-# Import auth components
 from components.auth import (
     check_authentication,
     render_login_page,
@@ -36,21 +34,21 @@ from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
 
 # Import real implementations of previously placeholder components
-from components.report_templates import render_report_templates 
-from components.team_objectives import render_team_objectives 
-from components.goal_dashboard import render_goal_dashboard 
-from components.okr_management import render_okr_management 
-from components.team_structure import render_team_structure 
-from components.one_on_one_meetings import render_one_on_one_meetings 
+from components.report_templates import render_report_templates as render_real_report_templates
+from components.team_objectives import render_team_objectives as render_real_team_objectives
+from components.goal_dashboard import render_goal_dashboard as render_real_goal_dashboard
+from components.okr_management import render_okr_management as render_real_okr_management
+from components.team_structure import render_team_structure as render_real_team_structure
+from components.one_on_one_meetings import render_one_on_one_meetings as render_real_one_on_one_meetings
 
 # Import placeholders (these now call the real implementations for backward compatibility)
 from components.placeholder import (
-    render_report_templates as placeholder_report_templates,
-    render_team_objectives as placeholder_team_objectives,
-    render_goal_dashboard as placeholder_goal_dashboard,
-    render_okr_management as placeholder_okr_management,
-    render_team_structure as placeholder_team_structure,
-    render_one_on_one_meetings as placeholder_one_on_one_meetings,
+    render_report_templates,
+    render_team_objectives,
+    render_goal_dashboard,
+    render_okr_management,
+    render_team_structure,
+    render_one_on_one_meetings,
     render_system_settings
 )
 
