@@ -37,13 +37,28 @@ def render_current_activities():
         st.rerun()
 
 def render_current_activity_form(index, activity):
-    """Render form fields for a current activity."""
+    """Render form fields for a current activity with progressive disclosure.
+    
+    Args:
+        index (int): Activity index in the session state
+        activity (dict): Activity data
+    """
     # Get username for project filtering
     username = ""
     if st.session_state.get("user_info"):
         username = st.session_state.user_info.get("username", "")
     
-    # First row: Project and Milestone
+    # Basic information (always shown)
+    description = st.text_area(
+        'Description', 
+        value=activity.get('description', ''), 
+        key=f"curr_desc_{index}",
+        height=100,
+        help="Describe what you're working on"
+    )
+    session.update_current_activity(index, 'description', description)
+    
+    # First row: Project and Milestone (essential information)
     col_proj, col_mile = st.columns(2)
     
     with col_proj:
@@ -96,8 +111,8 @@ def render_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'milestone', milestone)
     
-    # Second row: Priority, Status, Customer, Billable
-    col1, col2, col3, col4 = st.columns(4)
+    # Second row: Priority and Status (essential information)
+    col1, col2 = st.columns(2)
     
     with col1:
         priority = st.selectbox(
@@ -117,63 +132,129 @@ def render_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'status', status)
     
-    with col3:
-        customer = st.text_input(
-            'Customer', 
-            value=activity.get('customer', ''), 
-            key=f"curr_cust_{index}",
-            help="Client or internal team this work is for"
-        )
-        session.update_current_activity(index, 'customer', customer)
+    # Progress section with both slider and text input
+    st.write("#### Progress")
+    progress_col1, progress_col2 = st.columns([3, 1])
     
-    with col4:
-        billable = st.selectbox(
-            'Billable', 
-            options=BILLABLE_OPTIONS, 
-            index=BILLABLE_OPTIONS.index(activity.get('billable', '')) if activity.get('billable') in BILLABLE_OPTIONS else 0,
-            key=f"curr_bill_{index}"
-        )
-        session.update_current_activity(index, 'billable', billable)
-    
-    # Third row: Deadline, Progress
-    col5, col6 = st.columns(2)
-    
-    with col5:
-        # Handle date conversion
-        deadline_date = None
-        if activity.get('deadline'):
-            try:
-                deadline_date = datetime.strptime(activity['deadline'], '%Y-%m-%d').date()
-            except ValueError:
-                deadline_date = None
-        
-        deadline = st.date_input(
-            'Deadline', 
-            value=deadline_date,
-            key=f"curr_dead_{index}"
-        )
-        session.update_current_activity(index, 'deadline', deadline.strftime('%Y-%m-%d') if deadline else '')
-    
-    with col6:
+    with progress_col1:
         progress = st.slider(
-            '% Complete', 
+            'Progress Slider', 
             min_value=0, 
             max_value=100, 
             value=activity.get('progress', 50), 
-            key=f"curr_prog_{index}"
+            key=f"curr_prog_slider_{index}",
+            label_visibility="collapsed"
         )
-        session.update_current_activity(index, 'progress', progress)
     
-    # Description
-    description = st.text_area(
-        'Description', 
-        value=activity.get('description', ''), 
-        key=f"curr_desc_{index}",
-        height=100
+    with progress_col2:
+        # Allow direct percentage input
+        progress_text = st.text_input(
+            'Progress %', 
+            value=str(activity.get('progress', 50)), 
+            key=f"curr_prog_text_{index}",
+            help="Enter completion percentage"
+        )
+        
+        # Convert text input to integer with validation
+        try:
+            progress_value = int(progress_text)
+            # Clamp value between 0-100
+            progress_value = max(0, min(100, progress_value))
+            # Update the progress if different from slider value
+            if progress_value != progress:
+                progress = progress_value
+        except ValueError:
+            # If invalid input, use the slider value
+            pass
+    
+    # Update the progress in session state
+    session.update_current_activity(index, 'progress', progress)
+    
+    # Show advanced options toggle for progressive disclosure
+    if 'show_advanced_options' not in activity:
+        activity['show_advanced_options'] = False
+    
+    show_advanced = st.checkbox(
+        'Show advanced options',
+        value=activity.get('show_advanced_options', False),
+        key=f"curr_show_adv_{index}"
     )
-    session.update_current_activity(index, 'description', description)
+    session.update_current_activity(index, 'show_advanced_options', show_advanced)
+    
+    # Advanced options (shown only if toggle is on)
+    if show_advanced:
+        st.write("#### Advanced Options")
+        
+        # Customer and Billable
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            customer = st.text_input(
+                'Customer', 
+                value=activity.get('customer', ''), 
+                key=f"curr_cust_{index}",
+                help="Client or internal team this work is for"
+            )
+            session.update_current_activity(index, 'customer', customer)
+        
+        with col4:
+            billable = st.selectbox(
+                'Billable', 
+                options=BILLABLE_OPTIONS, 
+                index=BILLABLE_OPTIONS.index(activity.get('billable', '')) if activity.get('billable') in BILLABLE_OPTIONS else 0,
+                key=f"curr_bill_{index}"
+            )
+            session.update_current_activity(index, 'billable', billable)
+        
+        # Deadline with enable/disable option
+        st.write("#### Deadline")
+        has_deadline = st.checkbox(
+            'Set a deadline',
+            value=activity.get('has_deadline', False),
+            key=f"curr_has_deadline_{index}"
+        )
+        session.update_current_activity(index, 'has_deadline', has_deadline)
+        
+        if has_deadline:
+            # Handle date conversion
+            deadline_date = None
+            if activity.get('deadline'):
+                try:
+                    deadline_date = datetime.strptime(activity['deadline'], '%Y-%m-%d').date()
+                except ValueError:
+                    deadline_date = None
+            
+            deadline = st.date_input(
+                'Deadline Date', 
+                value=deadline_date,
+                key=f"curr_dead_{index}"
+            )
+            session.update_current_activity(index, 'deadline', deadline.strftime('%Y-%m-%d') if deadline else '')
+        else:
+            # Clear the deadline if checkbox is unchecked
+            session.update_current_activity(index, 'deadline', '')
+        
+        # Recurrence options
+        st.write("#### Recurrence")
+        is_recurring = st.checkbox(
+            'This is a recurring activity',
+            value=activity.get('is_recurring', False),
+            key=f"curr_is_recurring_{index}"
+        )
+        session.update_current_activity(index, 'is_recurring', is_recurring)
+        
+        if is_recurring:
+            recurrence_options = ["Daily", "Weekly", "Monthly"]
+            recurrence = st.selectbox(
+                'Recurrence Pattern',
+                options=recurrence_options,
+                index=recurrence_options.index(activity.get('recurrence', 'Weekly')) if activity.get('recurrence') in recurrence_options else 1,
+                key=f"curr_recurrence_{index}"
+            )
+            session.update_current_activity(index, 'recurrence', recurrence)
     
     # Remove button
+    st.divider()
     if st.button('Remove Activity', key=f"remove_curr_{index}"):
         session.remove_current_activity(index)
         st.rerun()

@@ -178,8 +178,8 @@ def collect_form_data():
         'id': st.session_state.get('report_id'),
         'name': st.session_state.name,
         'reporting_week': st.session_state.reporting_week,
-        'current_activities': [a for a in st.session_state.current_activities if a.get('description')],
-        'upcoming_activities': [a for a in st.session_state.upcoming_activities if a.get('description')],
+        'current_activities': [clean_activity_for_storage(a) for a in st.session_state.current_activities if a.get('description')],
+        'upcoming_activities': [clean_activity_for_storage(a) for a in st.session_state.upcoming_activities if a.get('description')],
         'accomplishments': [a for a in st.session_state.accomplishments if a],
         'followups': [f for f in st.session_state.followups if f],
         'nextsteps': [n for n in st.session_state.nextsteps if n],
@@ -193,6 +193,34 @@ def collect_form_data():
     
     return data
 
+def clean_activity_for_storage(activity):
+    """Clean activity data for storage, removing UI-specific fields.
+    
+    Args:
+        activity (dict): Raw activity data
+        
+    Returns:
+        dict: Cleaned activity data ready for storage
+    """
+    # Create a copy to avoid modifying the original
+    cleaned = activity.copy()
+    
+    # Remove UI-specific fields that don't need to be stored
+    ui_fields = ['show_advanced_options']
+    for field in ui_fields:
+        if field in cleaned:
+            del cleaned[field]
+    
+    # Clean up deadline if has_deadline is False
+    if 'has_deadline' in cleaned and not cleaned['has_deadline']:
+        cleaned['deadline'] = ''
+    
+    # Clean up expected_start if has_start_date is False
+    if 'has_start_date' in cleaned and not cleaned['has_start_date']:
+        cleaned['expected_start'] = ''
+    
+    return cleaned
+
 def load_report_data(report_data):
     """Load report data into session state with improved error handling."""
     if not report_data:
@@ -205,13 +233,15 @@ def load_report_data(report_data):
         st.session_state.reporting_week = report_data.get('reporting_week', '')
         
         # Safely load activities lists
-        st.session_state.current_activities = report_data.get('current_activities', [])
-        if not isinstance(st.session_state.current_activities, list):
-            st.session_state.current_activities = []
-            
-        st.session_state.upcoming_activities = report_data.get('upcoming_activities', [])
-        if not isinstance(st.session_state.upcoming_activities, list):
-            st.session_state.upcoming_activities = []
+        st.session_state.current_activities = enhance_loaded_activities(
+            report_data.get('current_activities', []), 
+            'current'
+        )
+        
+        st.session_state.upcoming_activities = enhance_loaded_activities(
+            report_data.get('upcoming_activities', []), 
+            'upcoming'
+        )
         
         # Safely load list items, ensuring they're never empty
         accomplishments = report_data.get('accomplishments', [''])
@@ -242,6 +272,50 @@ def load_report_data(report_data):
         st.error(f"Error loading report data: {str(e)}")
         import traceback
         st.error(f"Traceback: {traceback.format_exc()}")
+
+def enhance_loaded_activities(activities, activity_type):
+    """Enhance loaded activities with new UI-specific fields.
+    
+    Args:
+        activities (list): List of activity dictionaries
+        activity_type (str): Either 'current' or 'upcoming'
+        
+    Returns:
+        list: Enhanced list of activity dictionaries
+    """
+    if not isinstance(activities, list):
+        return []
+    
+    enhanced_activities = []
+    
+    for activity in activities:
+        if not isinstance(activity, dict):
+            continue
+            
+        # Create enhanced activity with UI-specific fields
+        enhanced = activity.copy()
+        
+        # Add progressive disclosure field
+        enhanced['show_advanced_options'] = False
+        
+        # Add has_deadline field based on deadline presence
+        if activity_type == 'current':
+            enhanced['has_deadline'] = bool(enhanced.get('deadline', ''))
+            
+        # Add has_start_date field based on expected_start presence
+        if activity_type == 'upcoming':
+            enhanced['has_start_date'] = bool(enhanced.get('expected_start', ''))
+            
+        # Add recurrence fields if not present
+        if 'is_recurring' not in enhanced:
+            enhanced['is_recurring'] = False
+            
+        if 'recurrence' not in enhanced:
+            enhanced['recurrence'] = 'Weekly'
+            
+        enhanced_activities.append(enhanced)
+    
+    return enhanced_activities
 
 def debug_report_data(report_data, prefix=""):
     """Debug function to print report data structure."""
