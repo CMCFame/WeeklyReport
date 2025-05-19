@@ -135,33 +135,81 @@ def render_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'billable', billable)
     
-    # Third row: Deadline, Progress
-    col5, col6 = st.columns(2)
+    # Third row: Recurrence, Deadline, Progress
+    col5, col6, col7 = st.columns(3)
     
     with col5:
-        # Handle date conversion
-        deadline_date = None
-        if activity.get('deadline'):
-            try:
-                deadline_date = datetime.strptime(activity['deadline'], '%Y-%m-%d').date()
-            except ValueError:
-                deadline_date = None
-        
-        deadline = st.date_input(
-            'Deadline', 
-            value=deadline_date,
-            key=f"curr_dead_{index}"
+        # Add recurrence option
+        recurrence_options = ["", "Daily", "Weekly", "Monthly"]
+        recurrence = st.selectbox(
+            'Recurrence',
+            options=recurrence_options,
+            index=recurrence_options.index(activity.get('recurrence', '')) if activity.get('recurrence') in recurrence_options else 0,
+            key=f"curr_recur_{index}",
+            help="Select if this is a recurring activity"
         )
-        session.update_current_activity(index, 'deadline', deadline.strftime('%Y-%m-%d') if deadline else '')
+        session.update_current_activity(index, 'recurrence', recurrence)
     
     with col6:
-        progress = st.slider(
-            '% Complete', 
-            min_value=0, 
-            max_value=100, 
-            value=activity.get('progress', 50), 
-            key=f"curr_prog_{index}"
-        )
+        # Only show deadline if not recurring
+        if not recurrence:
+            # Handle date conversion
+            deadline_date = None
+            if activity.get('deadline'):
+                try:
+                    deadline_date = datetime.strptime(activity['deadline'], '%Y-%m-%d').date()
+                except ValueError:
+                    deadline_date = None
+            
+            deadline = st.date_input(
+                'Deadline (Optional)', 
+                value=deadline_date,
+                key=f"curr_dead_{index}"
+            )
+            session.update_current_activity(index, 'deadline', deadline.strftime('%Y-%m-%d') if deadline else '')
+        else:
+            # Clear deadline if recurring
+            session.update_current_activity(index, 'deadline', '')
+            st.write("No deadline for recurring activities")
+    
+    with col7:
+        # Allow entering progress directly or using slider
+        st.write("Progress:")
+        progress_col1, progress_col2 = st.columns([3, 1])
+        
+        with progress_col1:
+            # Slider for progress
+            progress_slider = st.slider(
+                'Progress Slider', 
+                min_value=0, 
+                max_value=100, 
+                value=activity.get('progress', 50), 
+                key=f"curr_prog_slider_{index}",
+                label_visibility="collapsed"
+            )
+        
+        with progress_col2:
+            # Text input for progress
+            progress_text = st.number_input(
+                'Progress %',
+                min_value=0,
+                max_value=100,
+                value=activity.get('progress', 50),
+                key=f"curr_prog_text_{index}",
+                label_visibility="collapsed"
+            )
+        
+        # Use the most recently changed input (slider or text)
+        if f"curr_prog_slider_{index}" in st.session_state and f"curr_prog_text_{index}" in st.session_state:
+            # Check which widget was most recently changed
+            if st.session_state[f"curr_prog_slider_{index}"] != activity.get('progress', 50):
+                progress = progress_slider
+            else:
+                progress = progress_text
+        else:
+            # Default to text input value
+            progress = progress_text
+            
         session.update_current_activity(index, 'progress', progress)
     
     # Description

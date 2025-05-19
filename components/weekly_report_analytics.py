@@ -690,3 +690,195 @@ def get_all_reports():
     except Exception as e:
         st.error(f"Error retrieving reports: {str(e)}")
         return []
+
+ # components/weekly_report_analytics.py (partial file with the rendering function)
+
+def render_progress_metrics(activity_data):
+    """Render progress metrics visualizations.
+    
+    Args:
+        activity_data (dict): Processed activity data
+    """
+    st.subheader("Progress Metrics")
+    
+    # Check if we have data
+    if activity_data['activity_df'] is None or len(activity_data['activity_df']) == 0:
+        st.info("No activity data available for the selected filters.")
+        return
+    
+    df = activity_data['activity_df']
+    
+    # Filter to current activities only for progress analysis
+    current_df = df[df['activity_type'] == 'Current'].copy()
+    
+    if len(current_df) == 0:
+        st.info("No current activities found for analysis.")
+        return
+    
+    try:
+        # Calculate average progress by team member
+        progress_by_member = current_df.groupby('team_member')['progress'].mean().reset_index()
+        progress_by_member = progress_by_member.sort_values('progress', ascending=False)
+        
+        fig = px.bar(
+            progress_by_member,
+            x='team_member',
+            y='progress',
+            title='Average Progress by Team Member',
+            labels={'progress': 'Average Progress (%)', 'team_member': 'Team Member'},
+            text=progress_by_member['progress'].round(1).astype(str) + '%',
+            color='progress',
+            color_continuous_scale=px.colors.sequential.Viridis
+        )
+        
+        fig.update_layout(height=400)
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Get metrics for display
+        total_activities = len(current_df)
+        all_current_activities = current_df.to_dict('records')
+        
+        # Calculate average progress
+        total_progress = current_df['progress'].mean()
+        
+        # Count activities by status
+        status_counts = current_df['status'].value_counts().to_dict()
+        
+        # Display metrics
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            st.progress(total_progress / 100)
+            st.metric("Overall Progress", f"{total_progress:.1f}%")
+        
+        with col2:
+            st.metric("Total Activities", total_activities)
+            
+            # Count recurring activities
+            recurring_activities = len(current_df[current_df['recurrence'].notna() & (current_df['recurrence'] != '')])
+            
+            # Display recurring percentage
+            if total_activities > 0:
+                recurring_percentage = recurring_activities / total_activities * 100
+                st.metric("Recurring Activities", f"{recurring_activities} ({recurring_percentage:.1f}%)")
+            else:
+                st.metric("Recurring Activities", "0 (0%)")
+        
+        with col3:
+            # Activities at risk
+            at_risk = sum(1 for a in all_current_activities if a.get('priority') == 'High' and a.get('status') not in ['Completed'])
+            st.metric("High Priority Activities", at_risk)
+            
+        with col4:
+            # Show a completion indicator
+            st.metric("Completed Activities", status_counts.get('Completed', 0), 
+                    delta=f"{status_counts.get('Completed', 0)/total_activities*100:.1f}%" if total_activities else "0%")
+        
+        # Status distribution
+        status_counts = current_df['status'].value_counts().reset_index()
+        status_counts.columns = ['Status', 'Count']
+        
+        fig = px.pie(
+            status_counts, 
+            values='Count', 
+            names='Status',
+            title='Activity Status Distribution',
+            color='Status',
+            color_discrete_map={
+                'Completed': '#28a745',
+                'In Progress': '#17a2b8',
+                'Blocked': '#dc3545',
+                'Not Started': '#6c757d'
+            }
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Add a new breakdown by recurrence
+        st.subheader("Activities by Recurrence Pattern")
+        
+        # Count activities by recurrence pattern
+        recurrence_counts = current_df['recurrence'].fillna('').value_counts().reset_index()
+        recurrence_counts.columns = ['Recurrence', 'Count']
+        
+        # Replace empty string with "One-time"
+        recurrence_counts.loc[recurrence_counts['Recurrence'] == '', 'Recurrence'] = 'One-time'
+        
+        # Create bar chart
+        fig = px.bar(
+            recurrence_counts,
+            y='Recurrence',
+            x='Count',
+            orientation='h',
+            title='Activities by Recurrence Pattern',
+            color='Count',
+            color_continuous_scale=px.colors.sequential.Viridis,
+            text='Count'
+        )
+        
+        fig.update_layout(
+            xaxis_title="Number of Activities",
+            yaxis_title="",
+            height=300
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    
+    except Exception as e:
+        st.error(f"Error generating progress metrics: {str(e)}")
+ 
+# components/weekly_report_analytics.py (modified function for data processing)
+
+def process_activity_data(reports):
+    """Process activity data from reports.
+    
+    Args:
+        reports (list): List of report dictionaries
+        
+    Returns:
+        dict: Processed activity data
+    """
+    # Initialize data structures
+    activities = []
+    
+    # Process each report
+    for report in reports:
+        name = report.get('name', 'Anonymous')
+        report_date = report.get('timestamp', '')[:10] if report.get('timestamp') else 'Unknown'
+        reporting_week = report.get('reporting_week', 'Unknown')
+        
+        # Process current activities
+        for activity in report.get('current_activities', []):
+            activities.append({
+                'team_member': name,
+                'date': report_date,
+                'week': reporting_week,
+                'activity_type': 'Current',
+                'project': activity.get('project', 'Uncategorized'),
+                'milestone': activity.get('milestone', ''),
+                'status': activity.get('status', 'Unknown'),
+                'priority': activity.get('priority', 'Medium'),
+                'progress': activity.get('progress', 0),
+                'recurrence': activity.get('recurrence', ''),  # Add recurrence field
+                'deadline': activity.get('deadline', ''),
+                'description': activity.get('description', '')
+            })
+        
+        # Process upcoming activities
+        for activity in report.get('upcoming_activities', []):
+            activities.append({
+                'team_member': name,
+                'date': report_date,
+                'week': reporting_week,
+                'activity_type': 'Upcoming',
+                'project': activity.get('project', 'Uncategorized'),
+                'milestone': activity.get('milestone', ''),
+                'priority': activity.get('priority', 'Medium'),
+                'expected_start': activity.get('expected_start', ''),
+                'description': activity.get('description', '')
+            })
+    
+    return {
+        'activities': activities,
+        'activity_df': pd.DataFrame(activities) if activities else None
+    }
