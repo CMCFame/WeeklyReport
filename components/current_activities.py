@@ -162,7 +162,7 @@ def render_current_activity_form(index, activity):
                     deadline_date = None
             
             deadline = st.date_input(
-                'Deadline (Optional)', 
+                'Deadline', 
                 value=deadline_date,
                 key=f"curr_dead_{index}"
             )
