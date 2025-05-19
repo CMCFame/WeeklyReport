@@ -214,15 +214,8 @@ def export_report_to_pdf(report_data):
                 
                 # Status and priority
                 status_line = f"Status: {activity.get('status', 'Unknown')} | Priority: {activity.get('priority', 'Medium')}"
-                
-                # Add recurrence info
-                if activity.get('recurrence'):
-                    status_line += f" | Recurrence: {activity.get('recurrence')}"
-                elif activity.get('deadline'):
+                if activity.get('deadline'):
                     status_line += f" | Deadline: {activity.get('deadline')}"
-                else:
-                    status_line += " | Deadline: Not set"
-                    
                 pdf.cell(0, 5, status_line, 0, 1)
                 
                 # Progress bar

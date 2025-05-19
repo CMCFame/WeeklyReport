@@ -1,4 +1,4 @@
-# components/past_reports.py
+# components/past_reports.py - Updated with edit functionality
 """Past reports component for the Weekly Report app."""
 
 import streamlit as st
@@ -98,18 +98,9 @@ def render_report_details(report, index):
                         project_info += f", Milestone: {activity.get('milestone')}"
                     project_info += " | "
                 
-                # Add recurrence information
-                recurrence_info = ""
-                if activity.get('recurrence'):
-                    recurrence_info = f"Recurrence: {activity.get('recurrence')} | "
-                    deadline_info = "No deadline (recurring)"
-                else:
-                    deadline_info = f"Deadline: {activity.get('deadline', 'Not set')}"
-                
                 st.markdown(f"- **{activity.get('description', '')}** "
-                            f"({project_info}{recurrence_info}Priority: {activity.get('priority')}, "
+                            f"({project_info}Priority: {activity.get('priority')}, "
                             f"Status: {activity.get('status')}, "
-                            f"{deadline_info}, "
                             f"Progress: {activity.get('progress')}%)")
         
         # Upcoming Activities

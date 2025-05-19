@@ -15,7 +15,6 @@ DEFAULT_CURRENT_ACTIVITY = {
     'customer': '',
     'billable': '',
     'deadline': '',
-    'recurrence': '',  # Added recurrence field
     'progress': 50,
     'description': ''
 }
