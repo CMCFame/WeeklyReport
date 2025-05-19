@@ -208,6 +208,22 @@ def delete_user(username):
         if not os.path.exists(user_file):
             return False
         
+        # First check if this is the last admin user
+        with open(user_file, 'r') as f:
+            user_data = json.load(f)
+            
+        # Check if this is an admin user
+        if user_data.get("role") == "admin":
+            # Check if there are other admin users
+            all_users = get_all_users(include_sensitive=True)
+            admin_count = sum(1 for u in all_users if u.get("role") == "admin")
+            
+            # If this is the last admin, don't delete
+            if admin_count <= 1:
+                st.error("Cannot delete the last admin user.")
+                return False
+        
+        # Delete the file
         os.remove(user_file)
         return True
     except Exception as e:

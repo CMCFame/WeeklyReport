@@ -1,361 +1,369 @@
-# components/auth.py
-"""Authentication components for the Weekly Report app."""
+# utils/user_auth.py
+"""User authentication and management functions."""
 
-import streamlit as st
+import json
+import os
+import hashlib
+import uuid
 import pandas as pd
-# Import the whole module instead of individual functions
-from utils import user_auth
+import random
+import string
+from datetime import datetime, timedelta
+import streamlit as st
+from pathlib import Path
 
-def render_login_page():
-    """Render the login page."""
-    st.title("📋 Weekly Activity Report")
-    st.subheader("Login")
-    
-    # Login form
-    with st.form("login_form"):
-        username = st.text_input("Username")
-        password = st.text_input("Password", type="password")
-        submitted = st.form_submit_button("Login")
-        
-        if submitted:
-            if user_auth.login_user(username, password):
-                st.rerun()
-    
-    # Display login error if any
-    if st.session_state.get("login_error"):
-        st.error(st.session_state.login_error)
-    
-    # Links to registration and password reset
-    st.write("---")
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("Don't have an account?")
-        if st.button("Register New Account"):
-            st.session_state.show_register = True
-            st.rerun()
-    
-    with col2:
-        st.write("Forgot your password?")
-        if st.button("Reset Password"):
-            st.session_state.show_forgot_password = True
-            st.rerun()
+# User roles
+ROLES = {
+    "admin": "Administrator",
+    "manager": "Manager",
+    "team_member": "Team Member"
+}
 
-def render_register_page():
-    """Render the registration page."""
-    st.title("📋 Weekly Activity Report")
-    st.subheader("Create New Account")
-    
-    # Registration form
-    with st.form("register_form"):
-        username = st.text_input("Username", help="Choose a unique username")
-        password = st.text_input("Password", type="password")
-        confirm_password = st.text_input("Confirm Password", type="password")
-        full_name = st.text_input("Full Name")
-        email = st.text_input("Email")
-        
-        # Only show role selection for admins
-        role = "team_member"
-        if st.session_state.get("authenticated") and st.session_state.get("user_info"):
-            if st.session_state.user_info.get("role") == "admin":
-                role = st.selectbox("Role", options=list(user_auth.ROLES.keys()), 
-                                    format_func=lambda x: user_auth.ROLES[x])
-        
-        submitted = st.form_submit_button("Register")
-        
-        if submitted:
-            # Validate input
-            if not username or not password or not full_name or not email:
-                st.error("All fields are required.")
-            elif password != confirm_password:
-                st.error("Passwords do not match.")
-            else:
-                # Create new user
-                user_data = user_auth.create_user(username, password, email, full_name, role)
-                if user_data:
-                    st.success("Account created successfully! You can now log in.")
-                    # Clear registration flag
-                    if "show_register" in st.session_state:
-                        del st.session_state.show_register
-                    st.rerun()
-                else:
-                    st.error("Username already exists. Please choose a different one.")
-    
-    # Back to login
-    if st.button("Back to Login"):
-        if "show_register" in st.session_state:
-            del st.session_state.show_register
-        st.rerun()
+def ensure_user_directory():
+    """Ensure the user data directory exists."""
+    Path("data/users").mkdir(parents=True, exist_ok=True)
 
-def render_user_profile():
-    """Render the user profile page."""
-    st.title("User Profile")
+def hash_password(password):
+    """Simple password hashing using SHA-256.
     
-    if not st.session_state.get("authenticated") or not st.session_state.get("user_info"):
-        st.error("You must be logged in to view this page.")
-        return
+    In a production environment, use a proper password hashing library 
+    like bcrypt or Argon2.
     
-    user_info = st.session_state.user_info
-    current_username = user_info.get("username")
-    
-    # Refresh user data
-    fresh_user_data = user_auth.get_user(current_username)
-    if not fresh_user_data:
-        st.error("Unable to retrieve user data.")
-        return
-    
-    # Display current info
-    st.write(f"**Username:** {fresh_user_data.get('username')}")
-    st.write(f"**Full Name:** {fresh_user_data.get('full_name')}")
-    st.write(f"**Email:** {fresh_user_data.get('email')}")
-    st.write(f"**Role:** {user_auth.ROLES.get(fresh_user_data.get('role'), 'Unknown')}")
-    st.write(f"**Last Login:** {fresh_user_data.get('last_login', 'Never')}")
-    
-    st.divider()
-    
-    # Update profile form
-    st.subheader("Update Profile")
-    with st.form("update_profile_form"):
-        new_full_name = st.text_input("Full Name", value=fresh_user_data.get("full_name", ""))
-        new_email = st.text_input("Email", value=fresh_user_data.get("email", ""))
+    Args:
+        password (str): Plain text password
         
-        st.write("**Change Password (leave blank to keep current password)**")
-        new_password = st.text_input("New Password", type="password")
-        confirm_new_password = st.text_input("Confirm New Password", type="password")
-        
-        submitted = st.form_submit_button("Update Profile")
-        
-        if submitted:
-            updates = {
-                "full_name": new_full_name,
-                "email": new_email
-            }
-            
-            # Validate password change
-            if new_password:
-                if new_password != confirm_new_password:
-                    st.error("New passwords do not match.")
-                    return
-                updates["password"] = new_password
-            
-            # Update user
-            updated_user = user_auth.update_user(current_username, updates)
-            if updated_user:
-                # Update session state
-                st.session_state.user_info = updated_user
-                st.success("Profile updated successfully!")
-                st.rerun()
-            else:
-                st.error("Failed to update profile.")
+    Returns:
+        str: Hashed password
+    """
+    return hashlib.sha256(password.encode()).hexdigest()
 
-def render_logout_button():
-    """Render a logout button in the sidebar."""
-    if st.session_state.get("authenticated"):
-        if st.sidebar.button("Logout"):
-            user_auth.logout_user()
-            st.rerun()
+def create_user(username, password, email, full_name, role="team_member"):
+    """Create a new user.
+    
+    Args:
+        username (str): Unique username
+        password (str): Password
+        email (str): Email address
+        full_name (str): User's full name
+        role (str): User role (admin, manager, team_member)
+        
+    Returns:
+        dict: User data if created successfully, None otherwise
+    """
+    ensure_user_directory()
+    
+    # Check if user already exists
+    if os.path.exists(f"data/users/{username}.json"):
+        return None
+    
+    # Create user record
+    user_data = {
+        "id": str(uuid.uuid4()),
+        "username": username,
+        "password_hash": hash_password(password),
+        "email": email,
+        "full_name": full_name,
+        "role": role,
+        "created_at": datetime.now().isoformat(),
+        "last_login": None
+    }
+    
+    # Save user data
+    try:
+        with open(f"data/users/{username}.json", 'w') as f:
+            json.dump(user_data, f, indent=2)
+        return user_data
+    except Exception as e:
+        st.error(f"Error creating user: {str(e)}")
+        return None
 
-def render_forgot_password_page():
-    """Render the forgot password page."""
-    st.title("📋 Weekly Activity Report")
-    st.subheader("Reset Password")
-    st.write("Enter your username or email address to receive a password reset code.")
+def authenticate_user(username, password):
+    """Authenticate a user login.
     
-    with st.form("forgot_password_form"):
-        username_or_email = st.text_input("Username or Email")
-        submitted = st.form_submit_button("Request Reset Code")
+    Args:
+        username (str): Username
+        password (str): Password
         
-        if submitted:
-            if not username_or_email:
-                st.error("Please enter your username or email.")
-            else:
-                # Generate reset code
-                success, message, code = user_auth.generate_reset_code(username_or_email)
-                
-                if success:
-                    # In a real app, the code would be emailed
-                    # Here we just display it and store it in session state
-                    st.success(f"Reset code generated successfully. In a real application, this would be emailed to you.")
-                    st.info(f"For demo purposes, here's your code: **{code}**")
-                    
-                    # Store username for the reset page
-                    if '@' in username_or_email:
-                        # If email was provided, get the associated username
-                        all_users = user_auth.get_all_users(include_sensitive=True)
-                        for user in all_users:
-                            if user.get("email") == username_or_email:
-                                st.session_state.reset_username = user.get("username")
-                                break
-                    else:
-                        st.session_state.reset_username = username_or_email
-                    
-                    # Show reset password page next
-                    st.session_state.show_forgot_password = False
-                    st.session_state.show_reset_password = True
-                    st.rerun()
-                else:
-                    st.error(message)
-    
-    # Back to login
-    if st.button("Back to Login"):
-        st.session_state.show_forgot_password = False
-        st.rerun()
+    Returns:
+        dict: User data if authentication successful, None otherwise
+    """
+    try:
+        # Check if user exists
+        user_file = f"data/users/{username}.json"
+        if not os.path.exists(user_file):
+            return None
+        
+        # Load user data
+        with open(user_file, 'r') as f:
+            user_data = json.load(f)
+        
+        # Verify password
+        if user_data.get("password_hash") == hash_password(password):
+            # Update last login time
+            user_data["last_login"] = datetime.now().isoformat()
+            with open(user_file, 'w') as f:
+                json.dump(user_data, f, indent=2)
+            return user_data
+        
+        return None
+    except Exception as e:
+        st.error(f"Authentication error: {str(e)}")
+        return None
 
-def render_reset_password_page():
-    """Render the reset password page."""
-    st.title("📋 Weekly Activity Report")
-    st.subheader("Enter Reset Code")
+def get_all_users(include_sensitive=False):
+    """Get a list of all users.
     
-    if not st.session_state.get("reset_username"):
-        st.error("No reset request found. Please start over.")
-        if st.button("Back to Forgot Password"):
-            st.session_state.show_reset_password = False
-            st.session_state.show_forgot_password = True
-            st.rerun()
-        return
-    
-    with st.form("reset_password_form"):
-        st.write(f"Resetting password for: **{st.session_state.reset_username}**")
-        
-        reset_code = st.text_input("Reset Code", help="Enter the 6-digit code you received")
-        new_password = st.text_input("New Password", type="password")
-        confirm_password = st.text_input("Confirm New Password", type="password")
-        
-        submitted = st.form_submit_button("Reset Password")
-        
-        if submitted:
-            if not reset_code or not new_password or not confirm_password:
-                st.error("All fields are required.")
-            elif new_password != confirm_password:
-                st.error("Passwords do not match.")
-            else:
-                # Reset the password
-                success = user_auth.reset_password(st.session_state.reset_username, new_password, reset_code)
-                
-                if success:
-                    st.success("Password reset successfully! You can now log in with your new password.")
-                    
-                    # Clear reset state and return to login
-                    st.session_state.reset_username = None
-                    st.session_state.show_reset_password = False
-                    
-                    # Show a button to go back to login
-                    if st.button("Go to Login"):
-                        st.rerun()
-                else:
-                    st.error("Invalid or expired reset code. Please try again or request a new code.")
-    
-    # Back to forgot password
-    if st.button("Back to Forgot Password"):
-        st.session_state.show_reset_password = False
-        st.session_state.show_forgot_password = True
-        st.rerun()
-
-def render_admin_user_management():
-    """Render the admin user management page."""
-    if not st.session_state.get("authenticated") or not st.session_state.get("user_info"):
-        st.error("You must be logged in to view this page.")
-        return
-    
-    if st.session_state.user_info.get("role") != "admin":
-        st.error("You do not have permission to access this page.")
-        return
-    
-    st.title("User Management")
-    st.write("Manage user accounts")
-    
-    # User creation form
-    st.subheader("Create New User")
-    with st.form("create_user_form"):
-        username = st.text_input("Username", key="admin_new_username")
-        password = st.text_input("Password", type="password", key="admin_new_password")
-        full_name = st.text_input("Full Name", key="admin_new_fullname")
-        email = st.text_input("Email", key="admin_new_email")
-        role = st.selectbox(
-            "Role", 
-            options=list(user_auth.ROLES.keys()), 
-            format_func=lambda x: user_auth.ROLES[x],
-            key="admin_new_role"
-        )
-        
-        submitted = st.form_submit_button("Create User")
-        
-        if submitted:
-            # Validate input
-            if not username or not password or not full_name or not email:
-                st.error("All fields are required.")
-            else:
-                # Create new user
-                user_data = user_auth.create_user(username, password, email, full_name, role)
-                if user_data:
-                    st.success(f"User '{username}' created successfully!")
-                    st.rerun()
-                else:
-                    st.error("Username already exists. Please choose a different one.")
-    
-    # List and manage existing users
-    st.subheader("Existing Users")
-    
-    # Get all users
-    users = user_auth.get_all_users()
-    
-    if not users:
-        st.info("No users found.")
-        return
-    
-    # Display users in a table
-    user_data = []
-    for user in users:
-        user_data.append({
-            "Username": user.get("username", ""),
-            "Full Name": user.get("full_name", ""),
-            "Email": user.get("email", ""),
-            "Role": user_auth.ROLES.get(user.get("role", ""), "Unknown"),
-            "Last Login": user.get("last_login", "Never")[:19].replace("T", " ") if user.get("last_login") else "Never",
-            "Actions": user.get("username", "")  # We'll use this to identify the user for actions
-        })
-    
-    # Create a dataframe for display
-    if user_data:
-        df = pd.DataFrame(user_data)
-        
-        # Display the table without the Actions column
-        st.dataframe(df[["Username", "Full Name", "Email", "Role", "Last Login"]], use_container_width=True)
-        
-        # Add action buttons for each user
-        st.subheader("User Actions")
-        
-        for i, user in enumerate(users):
-            username = user.get("username", "")
-            if username != "admin":  # Protect the admin user
-                cols = st.columns([3, 1])
-                with cols[0]:
-                    st.write(f"**{user.get('full_name', '')}** ({username})")
-                with cols[1]:
-                    delete_key = f"delete_user_{i}"
-                    delete_pressed = st.button("Delete User", key=delete_key)
-                    
-                    if delete_pressed:
-                        # Display confirmation form
-                        with st.form(key=f"confirm_delete_form_{i}"):
-                            st.warning(f"Are you sure you want to delete user '{username}'?")
-                            confirm = st.form_submit_button("Confirm Delete")
-                            
-                            if confirm:
-                                if user_auth.delete_user(username):
-                                    st.success(f"User {username} deleted successfully.")
-                                    st.rerun()
-                                else:
-                                    st.error(f"Failed to delete user {username}.")
-                st.divider()
-
-def check_authentication():
-    """Check if user is authenticated and show login page if not.
+    Args:
+        include_sensitive (bool): Whether to include sensitive information like password hash
     
     Returns:
-        bool: True if authenticated, False otherwise
+        list: List of user data dictionaries
     """
-    # Initialize authentication state
+    ensure_user_directory()
+    users = []
+    
+    try:
+        for file_path in Path("data/users").glob("*.json"):
+            with open(file_path, 'r') as f:
+                user_data = json.load(f)
+                # Remove sensitive information if not requested
+                if not include_sensitive and "password_hash" in user_data:
+                    user_data.pop("password_hash")
+                users.append(user_data)
+        
+        return users
+    except Exception as e:
+        st.error(f"Error retrieving users: {str(e)}")
+        return []
+
+def get_user(username):
+    """Get user data by username.
+    
+    Args:
+        username (str): Username
+        
+    Returns:
+        dict: User data if found, None otherwise
+    """
+    try:
+        user_file = f"data/users/{username}.json"
+        if not os.path.exists(user_file):
+            return None
+        
+        with open(user_file, 'r') as f:
+            user_data = json.load(f)
+        
+        return user_data
+    except Exception as e:
+        st.error(f"Error retrieving user: {str(e)}")
+        return None
+
+def update_user(username, updates):
+    """Update user data.
+    
+    Args:
+        username (str): Username
+        updates (dict): Dictionary of fields to update
+        
+    Returns:
+        dict: Updated user data if successful, None otherwise
+    """
+    try:
+        user_file = f"data/users/{username}.json"
+        if not os.path.exists(user_file):
+            return None
+        
+        with open(user_file, 'r') as f:
+            user_data = json.load(f)
+        
+        # Apply updates
+        for key, value in updates.items():
+            # Don't allow changing username or id
+            if key not in ["username", "id"]:
+                user_data[key] = value
+        
+        # Handle password change separately
+        if "password" in updates:
+            user_data["password_hash"] = hash_password(updates["password"])
+        
+        with open(user_file, 'w') as f:
+            json.dump(user_data, f, indent=2)
+        
+        return user_data
+    except Exception as e:
+        st.error(f"Error updating user: {str(e)}")
+        return None
+
+def delete_user(username):
+    """Delete a user.
+    
+    Args:
+        username (str): Username
+        
+    Returns:
+        bool: True if deleted successfully, False otherwise
+    """
+    try:
+        user_file = f"data/users/{username}.json"
+        if not os.path.exists(user_file):
+            return False
+        
+        # First check if this is the last admin user
+        with open(user_file, 'r') as f:
+            user_data = json.load(f)
+            
+        # Check if this is an admin user
+        if user_data.get("role") == "admin":
+            # Check if there are other admin users
+            all_users = get_all_users(include_sensitive=True)
+            admin_count = sum(1 for u in all_users if u.get("role") == "admin")
+            
+            # If this is the last admin, don't delete
+            if admin_count <= 1:
+                st.error("Cannot delete the last admin user.")
+                return False
+        
+        # Delete the file
+        os.remove(user_file)
+        return True
+    except Exception as e:
+        st.error(f"Error deleting user: {str(e)}")
+        return False
+
+def generate_reset_code(username_or_email):
+    """Generate a password reset code for a user.
+    
+    Args:
+        username_or_email (str): Username or email of the user
+        
+    Returns:
+        tuple: (success, message, code) - Success status, message, and reset code if successful
+    """
+    # Find the user by username or email
+    user_data = None
+    username = None
+    
+    # Check for exact username match
+    if get_user(username_or_email):
+        user_data = get_user(username_or_email)
+        username = username_or_email
+    else:
+        # Search by email
+        all_users = get_all_users(include_sensitive=True)
+        for user in all_users:
+            if user.get("email") == username_or_email:
+                user_data = user
+                username = user.get("username")
+                break
+    
+    if not user_data or not username:
+        return False, "No user found with that username or email", None
+    
+    try:
+        # Generate a 6-digit code
+        reset_code = ''.join(random.choices(string.digits, k=6))
+        
+        # Add reset code and expiration to user data
+        expiration = (datetime.now() + timedelta(minutes=30)).isoformat()
+        
+        # Read the current file to preserve all data
+        user_file = f"data/users/{username}.json"
+        with open(user_file, 'r') as f:
+            current_user_data = json.load(f)
+        
+        # Add reset info
+        current_user_data["reset_code"] = reset_code
+        current_user_data["reset_expiration"] = expiration
+        
+        # Save user data
+        with open(user_file, 'w') as f:
+            json.dump(current_user_data, f, indent=2)
+        
+        # Return the code - in a real app, you would email this instead of returning it
+        return True, f"Reset code generated for {username}", reset_code
+        
+    except Exception as e:
+        st.error(f"Error generating reset code: {str(e)}")
+        return False, "Error generating reset code", None
+
+def verify_reset_code(username, code):
+    """Verify a password reset code.
+    
+    Args:
+        username (str): Username of the user
+        code (str): Reset code to verify
+        
+    Returns:
+        bool: True if code is valid, False otherwise
+    """
+    try:
+        user_data = get_user(username)
+        
+        if not user_data:
+            return False
+        
+        stored_code = user_data.get("reset_code")
+        expiration_str = user_data.get("reset_expiration")
+        
+        # Check if code exists and matches
+        if not stored_code or stored_code != code:
+            return False
+        
+        # Check if code has expired
+        if not expiration_str:
+            return False
+        
+        expiration = datetime.fromisoformat(expiration_str)
+        if datetime.now() > expiration:
+            return False
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error verifying reset code: {str(e)}")
+        return False
+
+def reset_password(username, new_password, code):
+    """Reset a user's password with a valid reset code.
+    
+    Args:
+        username (str): Username of the user
+        new_password (str): New password
+        code (str): Reset code to verify
+        
+    Returns:
+        bool: True if password was reset, False otherwise
+    """
+    # Verify the reset code
+    if not verify_reset_code(username, code):
+        return False
+    
+    try:
+        user_file = f"data/users/{username}.json"
+        
+        # Read current user data
+        with open(user_file, 'r') as f:
+            user_data = json.load(f)
+        
+        # Update password
+        user_data["password_hash"] = hash_password(new_password)
+        
+        # Clear reset code and expiration
+        user_data.pop("reset_code", None)
+        user_data.pop("reset_expiration", None)
+        
+        # Save updated user data
+        with open(user_file, 'w') as f:
+            json.dump(user_data, f, indent=2)
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error resetting password: {str(e)}")
+        return False
+
+def init_session_auth():
+    """Initialize authentication-related session state variables."""
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
     if "user_info" not in st.session_state:
@@ -372,26 +380,70 @@ def check_authentication():
         st.session_state.reset_username = None
     if "reset_code" not in st.session_state:
         st.session_state.reset_code = None
-        
-    # Show password reset pages if requested
-    if st.session_state.get("show_forgot_password", False):
-        render_forgot_password_page()
+
+def login_user(username, password):
+    """Process login attempt and update session state."""
+    user_data = authenticate_user(username, password)
+    if user_data:
+        st.session_state.authenticated = True
+        st.session_state.user_info = user_data
+        st.session_state.login_error = None
+        return True
+    else:
+        st.session_state.login_error = "Invalid username or password"
         return False
+
+def logout_user():
+    """Log out current user."""
+    st.session_state.authenticated = False
+    st.session_state.user_info = None
+
+def require_auth():
+    """Redirect to login page if user is not authenticated.
+    
+    Returns:
+        bool: True if authenticated, False otherwise
+    """
+    init_session_auth()
+    return st.session_state.authenticated
+
+def require_role(required_role):
+    """Check if current user has the required role.
+    
+    Args:
+        required_role (str): Required role
         
-    if st.session_state.get("show_reset_password", False):
-        render_reset_password_page()
+    Returns:
+        bool: True if user has required role, False otherwise
+    """
+    if not require_auth():
         return False
-        
-    # Show registration page if requested
-    if st.session_state.get("show_register", False):
-        render_register_page()
-        return False
-        
-    # Check if user is authenticated
-    if not st.session_state.authenticated:
-        render_login_page()
-        return False
-        
-    # User is authenticated, render logout button in sidebar
-    render_logout_button()
-    return True
+    
+    user_role = st.session_state.user_info.get("role")
+    
+    # Admin has access to everything
+    if user_role == "admin":
+        return True
+    
+    # Manager has access to manager and team_member roles
+    if user_role == "manager" and required_role in ["manager", "team_member"]:
+        return True
+    
+    # Exact role match
+    return user_role == required_role
+
+def create_admin_if_needed():
+    """Create default admin user if no users exist."""
+    ensure_user_directory()
+    
+    # Check if users directory is empty
+    if not list(Path("data/users").glob("*.json")):
+        create_user(
+            username="admin",
+            password="admin123",  # Should be changed immediately
+            email="admin@example.com",
+            full_name="System Administrator",
+            role="admin"
+        )
+        st.warning("Default admin user created! Username: admin, Password: admin123")
+        st.warning("Please change the default password immediately!")
