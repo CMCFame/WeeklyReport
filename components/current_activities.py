@@ -170,7 +170,7 @@ def render_current_activity_form(index, activity):
         else:
             # Clear deadline if recurring
             session.update_current_activity(index, 'deadline', '')
-            st.write("No deadline for recurring activities")
+            st.write("")
     
     with col7:
         # Allow entering progress directly or using slider
