@@ -1,5 +1,5 @@
 # components/current_activities.py
-"""Current activities component for the Weekly Report app."""
+"""Current activities component for the Weekly Report app with progressive disclosure."""
 
 import streamlit as st
 from datetime import datetime
@@ -8,11 +8,7 @@ from utils.constants import PRIORITY_OPTIONS, STATUS_OPTIONS, BILLABLE_OPTIONS
 from utils.csv_utils import get_user_projects, get_project_milestones
 
 def render_current_activities():
-    """Render the current activities section.
-    
-    This section allows users to add, edit, and remove current work activities
-    with details like project, milestone, priority, status, customer, etc.
-    """
+    """Render the current activities section with progressive disclosure."""
     st.header('📊 Current Activities')
     st.write('What are you currently working on? Include priority and status.')
     
@@ -37,23 +33,33 @@ def render_current_activities():
         st.rerun()
 
 def render_current_activity_form(index, activity):
-    """Render form fields for a current activity."""
+    """Render form fields for a current activity with progressive disclosure."""
     # Get username for project filtering
     username = ""
     if st.session_state.get("user_info"):
         username = st.session_state.user_info.get("username", "")
     
-    # First row: Project and Milestone
-    col_proj, col_mile = st.columns(2)
+    # Essential Fields Section (always visible)
+    # -------------------------------------------
     
-    with col_proj:
-        # Get available projects for the user
+    # Description - most important field first
+    description = st.text_area(
+        'Description', 
+        value=activity.get('description', ''), 
+        key=f"curr_desc_{index}",
+        height=100
+    )
+    session.update_current_activity(index, 'description', description)
+    
+    # First row: Project, Priority, Status
+    col_essential1, col_essential2, col_essential3 = st.columns(3)
+    
+    with col_essential1:
+        # Project selection
         available_projects = get_user_projects(username)
-        
-        # Current value
         current_project = activity.get('project', '')
         
-        # If current value not in available projects, add it to avoid errors
+        # If current value not in available projects, add it
         if current_project and current_project not in available_projects:
             available_projects.append(current_project)
         
@@ -61,45 +67,15 @@ def render_current_activity_form(index, activity):
         if not available_projects or available_projects[0] != '':
             available_projects = [''] + available_projects
             
-        # Project selection
         project = st.selectbox(
             'Project', 
             options=available_projects,
             index=available_projects.index(current_project) if current_project in available_projects else 0,
-            key=f"curr_proj_{index}",
-            help="Select the project for this activity"
+            key=f"curr_proj_{index}"
         )
         session.update_current_activity(index, 'project', project)
     
-    with col_mile:
-        # Get available milestones for the selected project
-        available_milestones = get_project_milestones(activity.get('project', ''))
-        
-        # Current value
-        current_milestone = activity.get('milestone', '')
-        
-        # If current value not in available milestones, add it to avoid errors
-        if current_milestone and current_milestone not in available_milestones:
-            available_milestones.append(current_milestone)
-        
-        # Empty option first
-        if not available_milestones or available_milestones[0] != '':
-            available_milestones = [''] + available_milestones
-            
-        # Milestone selection
-        milestone = st.selectbox(
-            'Milestone', 
-            options=available_milestones,
-            index=available_milestones.index(current_milestone) if current_milestone in available_milestones else 0,
-            key=f"curr_mile_{index}",
-            help="Select the milestone for this activity"
-        )
-        session.update_current_activity(index, 'milestone', milestone)
-    
-    # Second row: Priority, Status, Customer, Billable
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
+    with col_essential2:
         priority = st.selectbox(
             'Priority', 
             options=PRIORITY_OPTIONS, 
@@ -108,7 +84,7 @@ def render_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'priority', priority)
     
-    with col2:
+    with col_essential3:
         status = st.selectbox(
             'Status', 
             options=STATUS_OPTIONS, 
@@ -117,41 +93,85 @@ def render_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'status', status)
     
-    with col3:
-        customer = st.text_input(
-            'Customer', 
-            value=activity.get('customer', ''), 
-            key=f"curr_cust_{index}",
-            help="Client or internal team this work is for"
+    # Progress slider - always visible
+    st.write("Progress:")
+    progress_col1, progress_col2 = st.columns([4, 1])
+    
+    with progress_col1:
+        progress = st.slider(
+            'Progress', 
+            min_value=0, 
+            max_value=100, 
+            value=activity.get('progress', 50), 
+            key=f"curr_prog_slider_{index}",
+            label_visibility="collapsed"
         )
-        session.update_current_activity(index, 'customer', customer)
     
-    with col4:
-        billable = st.selectbox(
-            'Billable', 
-            options=BILLABLE_OPTIONS, 
-            index=BILLABLE_OPTIONS.index(activity.get('billable', '')) if activity.get('billable') in BILLABLE_OPTIONS else 0,
-            key=f"curr_bill_{index}"
-        )
-        session.update_current_activity(index, 'billable', billable)
+    with progress_col2:
+        st.metric("", f"{progress}%", label_visibility="collapsed")
     
-    # Third row: Recurrence, Deadline, Progress
-    col5, col6, col7 = st.columns(3)
+    session.update_current_activity(index, 'progress', progress)
     
-    with col5:
-        # Add recurrence option
-        recurrence_options = ["", "Daily", "Weekly", "Monthly"]
-        recurrence = st.selectbox(
-            'Recurrence',
-            options=recurrence_options,
-            index=recurrence_options.index(activity.get('recurrence', '')) if activity.get('recurrence') in recurrence_options else 0,
-            key=f"curr_recur_{index}",
-            help="Select if this is a recurring activity"
-        )
-        session.update_current_activity(index, 'recurrence', recurrence)
-    
-    with col6:
-        # Only show deadline if not recurring
+    # Advanced Fields Section (collapsed by default)
+    # ---------------------------------------------
+    with st.expander("Additional Details", expanded=False):
+        # First row of additional details: Milestone and Customer
+        col_adv1, col_adv2 = st.columns(2)
+        
+        with col_adv1:
+            # Get available milestones for the selected project
+            available_milestones = get_project_milestones(activity.get('project', ''))
+            current_milestone = activity.get('milestone', '')
+            
+            # If current value not in available milestones, add it
+            if current_milestone and current_milestone not in available_milestones:
+                available_milestones.append(current_milestone)
+            
+            # Empty option first
+            if not available_milestones or available_milestones[0] != '':
+                available_milestones = [''] + available_milestones
+                
+            milestone = st.selectbox(
+                'Milestone', 
+                options=available_milestones,
+                index=available_milestones.index(current_milestone) if current_milestone in available_milestones else 0,
+                key=f"curr_mile_{index}"
+            )
+            session.update_current_activity(index, 'milestone', milestone)
+        
+        with col_adv2:
+            customer = st.text_input(
+                'Customer', 
+                value=activity.get('customer', ''), 
+                key=f"curr_cust_{index}",
+                help="Client or internal team this work is for"
+            )
+            session.update_current_activity(index, 'customer', customer)
+        
+        # Second row of additional details: Recurrence and Billable
+        col_adv3, col_adv4 = st.columns(2)
+        
+        with col_adv3:
+            recurrence_options = ["", "Daily", "Weekly", "Monthly"]
+            recurrence = st.selectbox(
+                'Recurrence',
+                options=recurrence_options,
+                index=recurrence_options.index(activity.get('recurrence', '')) if activity.get('recurrence') in recurrence_options else 0,
+                key=f"curr_recur_{index}",
+                help="Select if this is a recurring activity"
+            )
+            session.update_current_activity(index, 'recurrence', recurrence)
+        
+        with col_adv4:
+            billable = st.selectbox(
+                'Billable', 
+                options=BILLABLE_OPTIONS, 
+                index=BILLABLE_OPTIONS.index(activity.get('billable', '')) if activity.get('billable') in BILLABLE_OPTIONS else 0,
+                key=f"curr_bill_{index}"
+            )
+            session.update_current_activity(index, 'billable', billable)
+        
+        # Third row: Deadline (only if not recurring)
         if not recurrence:
             # Handle date conversion
             deadline_date = None
@@ -162,7 +182,7 @@ def render_current_activity_form(index, activity):
                     deadline_date = None
             
             deadline = st.date_input(
-                'Deadline', 
+                'Deadline (Optional)', 
                 value=deadline_date,
                 key=f"curr_dead_{index}"
             )
@@ -170,56 +190,7 @@ def render_current_activity_form(index, activity):
         else:
             # Clear deadline if recurring
             session.update_current_activity(index, 'deadline', '')
-            st.write("-")
-    
-    with col7:
-        # Allow entering progress directly or using slider
-        st.write("Progress:")
-        progress_col1, progress_col2 = st.columns([3, 1])
-        
-        with progress_col1:
-            # Slider for progress
-            progress_slider = st.slider(
-                'Progress Slider', 
-                min_value=0, 
-                max_value=100, 
-                value=activity.get('progress', 50), 
-                key=f"curr_prog_slider_{index}",
-                label_visibility="collapsed"
-            )
-        
-        with progress_col2:
-            # Text input for progress
-            progress_text = st.number_input(
-                'Progress %',
-                min_value=0,
-                max_value=100,
-                value=activity.get('progress', 50),
-                key=f"curr_prog_text_{index}",
-                label_visibility="collapsed"
-            )
-        
-        # Use the most recently changed input (slider or text)
-        if f"curr_prog_slider_{index}" in st.session_state and f"curr_prog_text_{index}" in st.session_state:
-            # Check which widget was most recently changed
-            if st.session_state[f"curr_prog_slider_{index}"] != activity.get('progress', 50):
-                progress = progress_slider
-            else:
-                progress = progress_text
-        else:
-            # Default to text input value
-            progress = progress_text
-            
-        session.update_current_activity(index, 'progress', progress)
-    
-    # Description
-    description = st.text_area(
-        'Description', 
-        value=activity.get('description', ''), 
-        key=f"curr_desc_{index}",
-        height=100
-    )
-    session.update_current_activity(index, 'description', description)
+            st.write("No deadline for recurring activities")
     
     # Remove button
     if st.button('Remove Activity', key=f"remove_curr_{index}"):
