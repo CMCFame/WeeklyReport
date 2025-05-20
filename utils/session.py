@@ -36,6 +36,16 @@ def init_session_state():
     if 'nextsteps' not in st.session_state:
         st.session_state.nextsteps = [""]
     
+    # Initialize section visibility to False by default
+    if 'show_current_activities' not in st.session_state:
+        st.session_state.show_current_activities = False
+    if 'show_upcoming_activities' not in st.session_state:
+        st.session_state.show_upcoming_activities = False
+    if 'show_accomplishments' not in st.session_state:
+        st.session_state.show_accomplishments = False
+    if 'show_action_items' not in st.session_state:
+        st.session_state.show_action_items = False
+    
     # Optional sections visibility
     for section in OPTIONAL_SECTIONS:
         if section['key'] not in st.session_state:

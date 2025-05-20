@@ -1,6 +1,7 @@
-# components/modular_weekly_report.py (updated)
+# components/modular_weekly_report.py (complete updated version)
 
 import streamlit as st
+import time
 from utils import session
 from components.user_info import render_user_info
 from components.current_activities import render_current_activities
@@ -35,6 +36,9 @@ def render_modular_weekly_report(is_editing=False):
 
     # User Information Section (always shown)
     render_user_info()
+
+    # Generate a unique timestamp for this component
+    timestamp_base = int(time.time() * 1000)
 
     # Consolidated section selection dropdown
     st.subheader("Report Sections")
@@ -73,12 +77,12 @@ def render_modular_weekly_report(is_editing=False):
         if st.session_state.get(section["key"], False):
             current_selections.append(section_options[i])
     
-    # Use multiselect for section selection
+    # Use multiselect for section selection with unique key
     selected_sections = st.multiselect(
         "Sections to include",
         options=section_options,
         default=current_selections,
-        key="consolidated_sections_multiselect"
+        key=f"consolidated_sections_multiselect_{timestamp_base}"
     )
     
     # Check for sections that were deselected and have data
@@ -116,7 +120,7 @@ def render_modular_weekly_report(is_editing=False):
         
         confirm_col1, confirm_col2 = st.columns(2)
         with confirm_col1:
-            if st.button("Confirm Section Changes", type="primary"):
+            if st.button("Confirm Section Changes", type="primary", key=f"confirm_changes_{timestamp_base}"):
                 # Update section states based on selections
                 for i, section in enumerate(available_sections):
                     section_key = section["key"]
@@ -142,7 +146,7 @@ def render_modular_weekly_report(is_editing=False):
                 st.rerun()
         
         with confirm_col2:
-            if st.button("Cancel Changes"):
+            if st.button("Cancel Changes", key=f"cancel_changes_{timestamp_base}"):
                 # Reset the multiselect to match the current state
                 st.rerun()
     else:
@@ -465,6 +469,89 @@ def save_current_report(status, is_update=False):
         st.error('Please enter the reporting week before submitting')
         return
 
+    # Additional validation - Check if required sections are filled
+    has_required_data = True
+    error_msgs = []
+    
+    # Current activities validation
+    if st.session_state.get("show_current_activities", False):
+        has_current_activities = False
+        if st.session_state.get("current_activities"):
+            # Check if at least one activity has a description
+            for activity in st.session_state.current_activities:
+                if activity.get("description", "").strip():
+                    has_current_activities = True
+                    break
+        
+        if not has_current_activities:
+            has_required_data = False
+            error_msgs.append("Please add at least one current activity with a description.")
+    
+    # Upcoming activities validation
+    if st.session_state.get("show_upcoming_activities", False):
+        has_upcoming_activities = False
+        if st.session_state.get("upcoming_activities"):
+            # Check if at least one activity has a description
+            for activity in st.session_state.upcoming_activities:
+                if activity.get("description", "").strip():
+                    has_upcoming_activities = True
+                    break
+        
+        if not has_upcoming_activities:
+            has_required_data = False
+            error_msgs.append("Please add at least one upcoming activity with a description.")
+    
+    # Accomplishments validation
+    if st.session_state.get("show_accomplishments", False):
+        has_accomplishments = False
+        if st.session_state.get("accomplishments"):
+            # Check if at least one accomplishment is not empty
+            for accomplishment in st.session_state.accomplishments:
+                if accomplishment and accomplishment.strip():
+                    has_accomplishments = True
+                    break
+        
+        if not has_accomplishments:
+            has_required_data = False
+            error_msgs.append("Please add at least one accomplishment.")
+    
+    # Action items validation
+    if st.session_state.get("show_action_items", False):
+        has_action_items = False
+        # Check followups
+        if st.session_state.get("followups"):
+            for followup in st.session_state.followups:
+                if followup and followup.strip():
+                    has_action_items = True
+                    break
+        
+        # Check nextsteps
+        if not has_action_items and st.session_state.get("nextsteps"):
+            for nextstep in st.session_state.nextsteps:
+                if nextstep and nextstep.strip():
+                    has_action_items = True
+                    break
+        
+        if not has_action_items:
+            has_required_data = False
+            error_msgs.append("Please add at least one follow-up or next step.")
+    
+    # Validate optional sections if they are enabled
+    for section in OPTIONAL_SECTIONS:
+        if st.session_state.get(section["key"], False):
+            content_key = section["content_key"]
+            content = st.session_state.get(content_key, "")
+            
+            if not content or not content.strip():
+                has_required_data = False
+                error_msgs.append(f"Please add content to the {section['label']} section or disable it.")
+    
+    # Check if there are any validation errors
+    if status == 'submitted' and not has_required_data:
+        for error_msg in error_msgs:
+            st.error(error_msg)
+        return
+
     # Collect and save form data
     from utils.session import collect_form_data
     from utils.file_ops import save_report
@@ -495,3 +582,7 @@ def save_current_report(status, is_update=False):
         st.success('Draft saved successfully!')
     else:
         st.success('Report submitted successfully!')
+        # Optional: reset form after successful submission
+        from utils.session import reset_form
+        reset_form()
+        st.rerun()

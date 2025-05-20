@@ -270,11 +270,11 @@ def render_project_data_page():
 
 def render_weekly_report_page():
     """Render the main weekly report form."""
-    # Check if we're in edit mode
-    is_editing = st.session_state.get('editing_report', False)
-    
     # Use the updated modular weekly report component
     from components.modular_weekly_report import render_modular_weekly_report
+    
+    # Pass is_editing flag
+    is_editing = st.session_state.get('editing_report', False)
     render_modular_weekly_report(is_editing)
     
     # Header
