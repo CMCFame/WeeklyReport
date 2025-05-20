@@ -1,4 +1,4 @@
-# components/modular_weekly_report.py (complete updated version)
+# components/modular_weekly_report.py
 
 import streamlit as st
 import time
@@ -371,26 +371,28 @@ def render_enhanced_current_activity_form(index, activity):
     prog_col1, prog_col2 = st.columns([5, 1])
     
     with prog_col1:
-        # Use slider for progress
+        # Use slider for progress - Fix with a proper label
         progress = st.slider(
-            'Progress %', 
+            'Progress Percentage', 
             min_value=0, 
             max_value=100, 
             value=activity.get('progress', 50), 
             key=f"curr_prog_slider_{index}_{timestamp_base}",
-            label_visibility="collapsed"
+            label_visibility="collapsed"  # Hide the label visually but provide one for accessibility
         )
     
     with prog_col2:
-        # Manual progress input as a small number input
+        # Manual progress input as a small number input - Fix empty label warning
         manual_progress = st.number_input(
-            '%', 
+            'Progress Value', 
             min_value=0, 
             max_value=100, 
             value=progress,
             key=f"curr_prog_manual_{index}_{timestamp_base}",
-            label_visibility="visible"
+            label_visibility="collapsed"  # Hide the label visually but provide one for accessibility
         )
+        st.write('%')  # Add percentage sign
+        
         # Use manual input if it differs from slider
         if manual_progress != progress:
             progress = manual_progress
