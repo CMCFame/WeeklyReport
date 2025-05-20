@@ -270,12 +270,14 @@ def render_project_data_page():
 
 def render_weekly_report_page():
     """Render the main weekly report form."""
-    # Use the updated modular weekly report component
+    # ONLY use the updated modular weekly report component
     from components.modular_weekly_report import render_modular_weekly_report
     
     # Pass is_editing flag
     is_editing = st.session_state.get('editing_report', False)
     render_modular_weekly_report(is_editing)
+    
+    # Remove all the old direct rendering code
     
     # Header
     if is_editing:
@@ -292,30 +294,6 @@ def render_weekly_report_page():
     # Pre-fill name from user profile if empty
     if not st.session_state.get("name") and st.session_state.get("user_info"):
         st.session_state.name = st.session_state.user_info.get("full_name", "")
-
-    # User Information Section
-    render_user_info()
-
-    # Current Activities Section
-    render_current_activities()
-
-    # Upcoming Activities Section
-    render_upcoming_activities()
-
-    # Simplified Last Week's Accomplishments Section
-    render_simple_accomplishments()
-
-    # Simplified Action Items Section
-    render_simple_action_items()
-
-    # Optional Sections Toggle
-    render_optional_section_toggles()
-
-    # Optional Sections Content
-    render_all_optional_sections()
-
-    # Form Actions (modified for edit mode)
-    render_form_actions(is_editing)
 
 def render_form_actions(is_editing=False):
     """Render the form action buttons.
