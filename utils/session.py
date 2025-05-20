@@ -105,6 +105,11 @@ def update_current_activity(index, field, value):
     """Update a field in a current activity."""
     if index < len(st.session_state.current_activities):
         st.session_state.current_activities[index][field] = value
+        
+        # Special handling for the deadline toggle
+        if field == 'has_deadline' and not value:
+            # Clear deadline if has_deadline is unchecked
+            st.session_state.current_activities[index]['deadline'] = ''
 
 def add_upcoming_activity():
     """Add a new upcoming activity."""
