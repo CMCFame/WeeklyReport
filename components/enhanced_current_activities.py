@@ -1,5 +1,5 @@
-# components/current_activities.py
-"""Current activities component for the Weekly Report app."""
+# components/enhanced_current_activities.py
+"""Enhanced current activities component for the Weekly Report app."""
 
 import streamlit as st
 from datetime import datetime
@@ -7,8 +7,8 @@ from utils import session
 from utils.constants import PRIORITY_OPTIONS, STATUS_OPTIONS, BILLABLE_OPTIONS
 from utils.csv_utils import get_user_projects, get_project_milestones
 
-def render_current_activities():
-    """Render the current activities section.
+def render_enhanced_current_activities():
+    """Render the enhanced current activities section.
     
     This section allows users to add, edit, and remove current work activities
     with details like project, milestone, priority, status, customer, etc.
@@ -29,15 +29,15 @@ def render_current_activities():
         activity_title = f"{activity_title}..." if activity_title else "New Activity"
         
         with st.expander(f"Activity {i+1}: {activity_title}", expanded=i==0):
-            render_current_activity_form(i, activity)
+            render_enhanced_current_activity_form(i, activity)
     
     # Add activity button
     if st.button('+ Add Another Activity', use_container_width=True):
         session.add_current_activity()
         st.rerun()
 
-def render_current_activity_form(index, activity):
-    """Render form fields for a current activity."""
+def render_enhanced_current_activity_form(index, activity):
+    """Render form fields for a current activity with enhanced features."""
     # Get username for project filtering
     username = ""
     if st.session_state.get("user_info"):
@@ -135,33 +135,96 @@ def render_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'billable', billable)
     
-    # Third row: Deadline, Progress
+    # Third row: Deadline and Recurrent checkboxes
     col5, col6 = st.columns(2)
     
     with col5:
-        # Handle date conversion
-        deadline_date = None
-        if activity.get('deadline'):
-            try:
-                deadline_date = datetime.strptime(activity['deadline'], '%Y-%m-%d').date()
-            except ValueError:
-                deadline_date = None
-        
-        deadline = st.date_input(
-            'Deadline', 
-            value=deadline_date,
-            key=f"curr_dead_{index}"
+        # Initialize recurring field if not present
+        if 'is_recurring' not in activity:
+            activity['is_recurring'] = False
+            
+        is_recurring = st.checkbox(
+            'Recurring Activity',
+            value=activity.get('is_recurring', False),
+            key=f"curr_recur_{index}",
+            help="Check if this is a recurring activity"
         )
-        session.update_current_activity(index, 'deadline', deadline.strftime('%Y-%m-%d') if deadline else '')
+        session.update_current_activity(index, 'is_recurring', is_recurring)
     
     with col6:
-        progress = st.slider(
-            '% Complete', 
-            min_value=0, 
-            max_value=100, 
-            value=activity.get('progress', 50), 
-            key=f"curr_prog_{index}"
+        # Initialize has_deadline field if not present
+        if 'has_deadline' not in activity:
+            activity['has_deadline'] = bool(activity.get('deadline', ''))
+            
+        has_deadline = st.checkbox(
+            'Has Deadline',
+            value=activity.get('has_deadline', False),
+            key=f"curr_has_deadline_{index}",
+            help="Check if this activity has a deadline"
         )
+        session.update_current_activity(index, 'has_deadline', has_deadline)
+    
+    # Fourth row: Deadline (if applicable) and Progress
+    col7, col8 = st.columns(2)
+    
+    with col7:
+        if has_deadline:
+            # Handle date conversion
+            deadline_date = None
+            if activity.get('deadline'):
+                try:
+                    deadline_date = datetime.strptime(activity['deadline'], '%Y-%m-%d').date()
+                except ValueError:
+                    deadline_date = None
+            
+            deadline = st.date_input(
+                'Deadline',
+                value=deadline_date,
+                key=f"curr_dead_{index}"
+            )
+            session.update_current_activity(index, 'deadline', deadline.strftime('%Y-%m-%d') if deadline else '')
+        else:
+            # Clear deadline if checkbox is unchecked
+            session.update_current_activity(index, 'deadline', '')
+    
+    with col8:
+        # Progress with both slider and number input
+        st.write("Progress")
+        progress_cols = st.columns([3, 1])
+        
+        # Get current progress
+        current_progress = activity.get('progress', 50)
+        
+        with progress_cols[0]:
+            progress_slider = st.slider(
+                'Progress Slider',
+                min_value=0,
+                max_value=100,
+                value=current_progress,
+                key=f"curr_prog_slider_{index}",
+                label_visibility="collapsed"
+            )
+        
+        with progress_cols[1]:
+            progress_number = st.number_input(
+                'Progress %',
+                min_value=0,
+                max_value=100,
+                value=progress_slider,
+                step=1,
+                key=f"curr_prog_num_{index}",
+                label_visibility="collapsed"
+            )
+        
+        # Sync progress between slider and number input
+        if progress_slider != progress_number:
+            if st.session_state.get(f"curr_prog_num_{index}") != progress_slider:
+                progress = progress_number
+            else:
+                progress = progress_slider
+        else:
+            progress = progress_slider
+        
         session.update_current_activity(index, 'progress', progress)
     
     # Description

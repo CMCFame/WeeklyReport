@@ -14,6 +14,8 @@ def get_next_monday():
     next_monday = today + timedelta(days=days_ahead)
     return next_monday.strftime('%Y-%m-%d')
 
+# Add to utils/session.py
+
 def init_session_state():
     """Initialize session state variables."""
     # User information
@@ -21,6 +23,16 @@ def init_session_state():
         st.session_state.name = ""
     if 'reporting_week' not in st.session_state:
         st.session_state.reporting_week = ""
+    
+    # Section visibility
+    if 'show_current_activities' not in st.session_state:
+        st.session_state.show_current_activities = True
+    if 'show_upcoming_activities' not in st.session_state:
+        st.session_state.show_upcoming_activities = True
+    if 'show_accomplishments' not in st.session_state:
+        st.session_state.show_accomplishments = True
+    if 'show_action_items' not in st.session_state:
+        st.session_state.show_action_items = True
     
     # Activities
     if 'current_activities' not in st.session_state:
@@ -58,6 +70,45 @@ def init_session_state():
     # Cancellation flag
     if 'cancel_editing' not in st.session_state:
         st.session_state.cancel_editing = False
+
+def calculate_completion_percentage():
+    """Calculate the form completion percentage."""
+    total_sections = 0
+    completed_sections = 0
+    
+    # Check current activities (only if section is enabled)
+    if st.session_state.get('show_current_activities', True):
+        total_sections += 1
+        if len(st.session_state.get('current_activities', [])) > 0:
+            completed_sections += 1
+    
+    # Check upcoming activities (only if section is enabled)
+    if st.session_state.get('show_upcoming_activities', True):
+        total_sections += 1
+        if len(st.session_state.get('upcoming_activities', [])) > 0:
+            completed_sections += 1
+    
+    # Check accomplishments (only if section is enabled)
+    if st.session_state.get('show_accomplishments', True):
+        total_sections += 1
+        if len(st.session_state.get('accomplishments', [])) > 0 and any(a for a in st.session_state.accomplishments):
+            completed_sections += 1
+    
+    # Check action items (only if section is enabled)
+    if st.session_state.get('show_action_items', True):
+        total_sections += 1
+        if ((len(st.session_state.get('followups', [])) > 0 and any(f for f in st.session_state.followups)) or
+            (len(st.session_state.get('nextsteps', [])) > 0 and any(n for n in st.session_state.nextsteps))):
+            completed_sections += 1
+    
+    # Add optional sections if enabled and have content
+    for section in OPTIONAL_SECTIONS:
+        if st.session_state.get(section['key'], False):
+            total_sections += 1
+            if st.session_state.get(section['content_key'], ''):
+                completed_sections += 1
+    
+    return int((completed_sections / total_sections) * 100) if total_sections > 0 else 0
 
 def reset_form():
     """Reset the form to its initial state."""

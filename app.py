@@ -29,7 +29,8 @@ from utils.meeting_utils import ensure_meetings_directory
 
 # Import component modules
 from components.user_info import render_user_info
-from components.current_activities import render_current_activities
+from components.enhanced_current_activities import render_enhanced_current_activities
+from components.section_selector import render_section_selector
 from components.upcoming_activities import render_upcoming_activities
 from components.simple_accomplishments import render_simple_accomplishments
 from components.simple_action_items import render_simple_action_items
@@ -269,7 +270,7 @@ def render_project_data_page():
         st.error(f"Error displaying project data: {str(e)}")
 
 def render_weekly_report_page():
-    """Render the main weekly report form."""
+    """Render the main weekly report form with modular sections."""
     # Check if we're in edit mode
     is_editing = st.session_state.get('editing_report', False)
     
@@ -289,23 +290,35 @@ def render_weekly_report_page():
     if not st.session_state.get("name") and st.session_state.get("user_info"):
         st.session_state.name = st.session_state.user_info.get("full_name", "")
 
-    # User Information Section
+    # Initialize session state for section toggles if they don't exist
+    for section in [
+        'show_current_activities', 'show_upcoming_activities', 
+        'show_accomplishments', 'show_action_items'
+    ]:
+        if section not in st.session_state:
+            st.session_state[section] = True  # Core sections are on by default
+
+    # User Information Section (always visible)
     render_user_info()
-
-    # Current Activities Section
-    render_current_activities()
-
-    # Upcoming Activities Section
-    render_upcoming_activities()
-
-    # Simplified Last Week's Accomplishments Section
-    render_simple_accomplishments()
-
-    # Simplified Action Items Section
-    render_simple_action_items()
-
-    # Optional Sections Toggle
-    render_optional_section_toggles()
+    
+    # Section Selector
+    with st.expander("🔧 Customize Report Sections", expanded=False):
+        from components.section_selector import render_section_selector
+        render_section_selector()
+    
+    # Render each section based on toggle state
+    if st.session_state.get('show_current_activities', True):
+        from components.enhanced_current_activities import render_enhanced_current_activities
+        render_enhanced_current_activities()
+    
+    if st.session_state.get('show_upcoming_activities', True):
+        render_upcoming_activities()
+    
+    if st.session_state.get('show_accomplishments', True):
+        render_simple_accomplishments()
+    
+    if st.session_state.get('show_action_items', True):
+        render_simple_action_items()
 
     # Optional Sections Content
     render_all_optional_sections()

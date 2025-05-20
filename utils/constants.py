@@ -6,6 +6,8 @@ PRIORITY_OPTIONS = ["High", "Medium", "Low"]
 STATUS_OPTIONS = ["Not Started", "In Progress", "Blocked", "Completed"]
 BILLABLE_OPTIONS = ["", "Yes", "No"]
 
+# utils/constants.py (update the DEFAULT_CURRENT_ACTIVITY)
+
 # Current activities default
 DEFAULT_CURRENT_ACTIVITY = {
     'project': '',
@@ -15,6 +17,8 @@ DEFAULT_CURRENT_ACTIVITY = {
     'customer': '',
     'billable': '',
     'deadline': '',
+    'has_deadline': False,  # New field
+    'is_recurring': False,  # New field
     'progress': 50,
     'description': ''
 }
