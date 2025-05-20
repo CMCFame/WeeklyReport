@@ -1,9 +1,8 @@
-# components/upcoming_activities.py - Updated with unique keys
+# components/upcoming_activities.py
 """Upcoming activities component for the Weekly Report app."""
 
 import streamlit as st
 from datetime import datetime
-import time  # Import time for unique keys
 from utils import session
 from utils.constants import PRIORITY_OPTIONS
 from utils.csv_utils import get_user_projects, get_project_milestones
@@ -17,37 +16,27 @@ def render_upcoming_activities():
     st.header('📅 Upcoming Activities')
     st.write('What activities are planned for the near future? Include expected start date.')
     
-    # Generate unique timestamp for keys
-    timestamp = int(time.time() * 1000)
-    
     # Handle empty state - add a default activity if none exist
     if not st.session_state.upcoming_activities:
-        if st.button('+ Add First Upcoming Activity', 
-                    use_container_width=True, 
-                    key=f"add_first_upcoming_{timestamp}"):  # Added unique key
+        if st.button('+ Add First Upcoming Activity', use_container_width=True):
             session.add_upcoming_activity()
             st.rerun()
         return
     
     # Render existing activities
     for i, activity in enumerate(st.session_state.upcoming_activities):
-        # Generate unique timestamp for each activity
-        activity_timestamp = int(time.time() * 1000) + i
-        
         activity_title = activity.get('description', '')[:30]
         activity_title = f"{activity_title}..." if activity_title else "New Upcoming Activity"
         
         with st.expander(f"Upcoming Activity {i+1}: {activity_title}", expanded=i==0):
-            render_upcoming_activity_form(i, activity, activity_timestamp)
+            render_upcoming_activity_form(i, activity)
     
-    # Add activity button - with unique key
-    if st.button('+ Add Another Upcoming Activity', 
-                use_container_width=True, 
-                key=f"add_more_upcoming_{timestamp}"):  # Added unique key
+    # Add activity button
+    if st.button('+ Add Another Upcoming Activity', use_container_width=True):
         session.add_upcoming_activity()
         st.rerun()
 
-def render_upcoming_activity_form(index, activity, timestamp_base):
+def render_upcoming_activity_form(index, activity):
     """Render form fields for an upcoming activity."""
     # Get username for project filtering
     username = ""
@@ -72,12 +61,12 @@ def render_upcoming_activity_form(index, activity, timestamp_base):
         if not available_projects or available_projects[0] != '':
             available_projects = [''] + available_projects
             
-        # Project selection - with unique key
+        # Project selection
         project = st.selectbox(
             'Project', 
             options=available_projects,
             index=available_projects.index(current_project) if current_project in available_projects else 0,
-            key=f"up_proj_{index}_{timestamp_base}",  # Updated key to be unique
+            key=f"up_proj_{index}",
             help="Select the project for this upcoming activity"
         )
         session.update_upcoming_activity(index, 'project', project)
@@ -97,12 +86,12 @@ def render_upcoming_activity_form(index, activity, timestamp_base):
         if not available_milestones or available_milestones[0] != '':
             available_milestones = [''] + available_milestones
             
-        # Milestone selection - with unique key
+        # Milestone selection
         milestone = st.selectbox(
             'Milestone', 
             options=available_milestones,
             index=available_milestones.index(current_milestone) if current_milestone in available_milestones else 0,
-            key=f"up_mile_{index}_{timestamp_base}",  # Updated key to be unique
+            key=f"up_mile_{index}",
             help="Select the milestone for this upcoming activity"
         )
         session.update_upcoming_activity(index, 'milestone', milestone)
@@ -115,7 +104,7 @@ def render_upcoming_activity_form(index, activity, timestamp_base):
             'Priority', 
             options=PRIORITY_OPTIONS, 
             index=PRIORITY_OPTIONS.index(activity.get('priority', 'Medium')) if activity.get('priority') in PRIORITY_OPTIONS else 1,
-            key=f"up_prio_{index}_{timestamp_base}"  # Updated key to be unique
+            key=f"up_prio_{index}"
         )
         session.update_upcoming_activity(index, 'priority', priority)
     
@@ -133,7 +122,7 @@ def render_upcoming_activity_form(index, activity, timestamp_base):
         start_date = st.date_input(
             'Expected Start', 
             value=expected_start_date,
-            key=f"up_start_{index}_{timestamp_base}"  # Updated key to be unique
+            key=f"up_start_{index}"
         )
         session.update_upcoming_activity(index, 'expected_start', start_date.strftime('%Y-%m-%d'))
     
@@ -141,13 +130,12 @@ def render_upcoming_activity_form(index, activity, timestamp_base):
     description = st.text_area(
         'Description', 
         value=activity.get('description', ''), 
-        key=f"up_desc_{index}_{timestamp_base}",  # Updated key to be unique
+        key=f"up_desc_{index}",
         height=100
     )
     session.update_upcoming_activity(index, 'description', description)
     
-    # Remove button - with unique key
-    if st.button('Remove Activity', 
-                key=f"remove_up_{index}_{timestamp_base}"):  # Updated key to be unique
+    # Remove button
+    if st.button('Remove Activity', key=f"remove_up_{index}"):
         session.remove_upcoming_activity(index)
         st.rerun()

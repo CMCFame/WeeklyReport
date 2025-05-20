@@ -36,16 +36,6 @@ def init_session_state():
     if 'nextsteps' not in st.session_state:
         st.session_state.nextsteps = [""]
     
-    # Initialize section visibility to False by default
-    if 'show_current_activities' not in st.session_state:
-        st.session_state.show_current_activities = False
-    if 'show_upcoming_activities' not in st.session_state:
-        st.session_state.show_upcoming_activities = False
-    if 'show_accomplishments' not in st.session_state:
-        st.session_state.show_accomplishments = False
-    if 'show_action_items' not in st.session_state:
-        st.session_state.show_action_items = False
-    
     # Optional sections visibility
     for section in OPTIONAL_SECTIONS:
         if section['key'] not in st.session_state:
@@ -115,11 +105,6 @@ def update_current_activity(index, field, value):
     """Update a field in a current activity."""
     if index < len(st.session_state.current_activities):
         st.session_state.current_activities[index][field] = value
-        
-        # Special handling for the deadline toggle
-        if field == 'has_deadline' and not value:
-            # Clear deadline if has_deadline is unchecked
-            st.session_state.current_activities[index]['deadline'] = ''
 
 def add_upcoming_activity():
     """Add a new upcoming activity."""

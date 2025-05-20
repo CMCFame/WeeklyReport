@@ -270,12 +270,48 @@ def render_project_data_page():
 
 def render_weekly_report_page():
     """Render the main weekly report form."""
-    # ONLY use the updated modular weekly report component
-    from components.modular_weekly_report import render_modular_weekly_report
-    
-    # Pass is_editing flag
+    # Check if we're in edit mode
     is_editing = st.session_state.get('editing_report', False)
-    render_modular_weekly_report(is_editing)
+    
+    # Header
+    if is_editing:
+        st.title('📝 Edit Weekly Activity Report')
+        st.write('Update your previous report')
+    else:
+        st.title('📋 Weekly Activity Report')
+        st.write('Use the sections below to document your week\'s work')
+
+    # Progress bar
+    completion_percentage = calculate_completion_percentage()
+    st.progress(completion_percentage / 100)
+    
+    # Pre-fill name from user profile if empty
+    if not st.session_state.get("name") and st.session_state.get("user_info"):
+        st.session_state.name = st.session_state.user_info.get("full_name", "")
+
+    # User Information Section
+    render_user_info()
+
+    # Current Activities Section
+    render_current_activities()
+
+    # Upcoming Activities Section
+    render_upcoming_activities()
+
+    # Simplified Last Week's Accomplishments Section
+    render_simple_accomplishments()
+
+    # Simplified Action Items Section
+    render_simple_action_items()
+
+    # Optional Sections Toggle
+    render_optional_section_toggles()
+
+    # Optional Sections Content
+    render_all_optional_sections()
+
+    # Form Actions (modified for edit mode)
+    render_form_actions(is_editing)
 
 def render_form_actions(is_editing=False):
     """Render the form action buttons.
@@ -369,9 +405,6 @@ def save_current_report(status, is_update=False):
         st.success('Draft saved successfully!')
     else:
         st.success('Report submitted successfully!')
-        # Optional: reset form after successful submission
-        reset_form()
-        st.rerun()
 
 # Run the app
 if __name__ == '__main__':

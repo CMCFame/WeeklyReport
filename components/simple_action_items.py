@@ -5,9 +5,13 @@ import streamlit as st
 from utils import session
 from utils.file_ops import get_all_reports
 
-# components/simple_action_items.py - Updated with unique keys
 def render_simple_action_items():
-    """Render the simplified action items section."""
+    """Render the simplified action items section.
+    
+    This section has two parts with improved UI but minimal complexity:
+    1. Follow-up tasks from the last meeting
+    2. Next steps planned for the coming week
+    """
     st.header('📋 Action Items')
     
     # Follow-up tasks from last meeting
@@ -15,18 +19,20 @@ def render_simple_action_items():
     st.write('What follow-up tasks were assigned to you?')
     
     # Button to load next steps from previous reports as follow-ups
-    # Using a unique key with timestamp to prevent duplication
-    import time
-    unique_key = f"load_prev_steps_{int(time.time() * 1000)}"
+    load_col1, load_col2 = st.columns([3, 1])
     
-    if st.button('Load Previous Next Steps', help="Import next steps from your last report as follow-ups", key=unique_key):
-        load_next_steps_from_previous_report()
-        st.rerun()
+    with load_col1:
+        st.write("Load from your previous report to save time:")
+    
+    with load_col2:
+        if st.button('Load Previous Next Steps', help="Import next steps from your last report as follow-ups"):
+            load_next_steps_from_previous_report()
+            st.rerun()
     
     # Render follow-up items
     render_simple_item_list('followups', 'Follow-up')
     
-    if st.button('+ Add Another Follow-up', use_container_width=True, key=f"add_followup_{int(time.time() * 1000)}"):
+    if st.button('+ Add Another Follow-up', use_container_width=True):
         session.add_item_to_list('followups')
         st.rerun()
     
@@ -38,53 +44,24 @@ def render_simple_action_items():
     st.write("Quick-add common next steps:")
     col1, col2, col3 = st.columns(3)
     
-    timestamp = int(time.time() * 1000)
     with col1:
-        if st.button("📆 Schedule Meeting", use_container_width=True, key=f"quick_schedule_{timestamp}"):
+        if st.button("📆 Schedule Meeting", use_container_width=True):
             add_template_next_step("Schedule meeting with [person/team] for [topic]")
     
     with col2:
-        if st.button("📝 Create Document", use_container_width=True, key=f"quick_document_{timestamp}"):
+        if st.button("📝 Create Document", use_container_width=True):
             add_template_next_step("Create [document/report] for [purpose]")
     
     with col3:
-        if st.button("✅ Complete Task", use_container_width=True, key=f"quick_task_{timestamp}"):
+        if st.button("✅ Complete Task", use_container_width=True):
             add_template_next_step("Complete [task] by [date]")
     
     # Render next step items
     render_simple_item_list('nextsteps', 'Next Step')
     
-    if st.button('+ Add Another Next Step', use_container_width=True, key=f"add_nextstep_{int(time.time() * 1000)}"):
+    if st.button('+ Add Another Next Step', use_container_width=True):
         session.add_item_to_list('nextsteps')
         st.rerun()
-
-def render_simple_item_list(key, label_prefix):
-    """Render a list of items with simplified UI."""
-    item_list = st.session_state.get(key, [""])
-    import time
-    timestamp_base = int(time.time() * 1000)
-    
-    for i, item in enumerate(item_list):
-        col1, col2 = st.columns([10, 1])
-        
-        with col1:
-            # Generate placeholder based on the type of item
-            placeholder = "Describe this follow-up task..." if key == 'followups' else "Describe this planned action..."
-            
-            updated_item = st.text_area(
-                f"{label_prefix} {i+1}" if i > 0 else label_prefix, 
-                value=item, 
-                key=f"{key}_{i}_{timestamp_base}", 
-                label_visibility="collapsed",
-                height=80,
-                placeholder=placeholder
-            )
-            session.update_item_list(key, i, updated_item)
-        
-        with col2:
-            if len(item_list) > 1 and st.button('🗑️', key=f"remove_{key}_{i}_{timestamp_base}"):
-                session.remove_item_from_list(key, i)
-                st.rerun()
 
 def render_simple_item_list(key, label_prefix):
     """Render a list of items with simplified UI.
