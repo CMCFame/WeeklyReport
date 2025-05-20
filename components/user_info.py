@@ -10,7 +10,7 @@ def _on_report_select():
     Loads the selected report into session_state, then reruns,
     so subsequent widgets pick up the new values.
     """
-    idx = st.session_state.selected_report_idx - 1
+    idx = st.session_state.user_info_report_selector - 1  # Updated key reference
     if idx >= 0:
         reports = st.session_state._cached_reports
         report_data = reports[idx].copy()
@@ -84,7 +84,7 @@ def render_previous_reports_dropdown():
             "Load Previous Report",
             options=list(range(len(labels))),
             format_func=lambda i: labels[i],
-            key="selected_report_idx",
+            key="user_info_report_selector",  # Changed key to be more specific
             help="Choose a past report to preload the form",
             on_change=_on_report_select
         )

@@ -11,7 +11,7 @@ from components.simple_action_items import render_simple_action_items
 from components.optional_sections import render_optional_section_toggles, render_all_optional_sections
 
 def render_modular_weekly_report(is_editing=False):
-    """Render the modular weekly report form with section selection menu.
+    """Render the modular weekly report form with unified section selection toolbar.
     
     Args:
         is_editing (bool): Whether we're in edit mode
@@ -22,7 +22,7 @@ def render_modular_weekly_report(is_editing=False):
         st.write('Update your previous report')
     else:
         st.title('📋 Weekly Activity Report')
-        st.write('Select the sections you want to include in your report')
+        st.write('Use the sections below to document your week\'s work')
 
     # Progress bar
     from utils.session import calculate_completion_percentage
@@ -46,35 +46,67 @@ def render_modular_weekly_report(is_editing=False):
     if "show_action_items" not in st.session_state:
         st.session_state.show_action_items = True
 
-    # Section selection menu
+    # Unified Section Toolbar - use icons and consistent styling
     st.subheader("Report Sections")
     st.write("Select which sections to include in your report:")
     
-    col1, col2 = st.columns(2)
+    # Define section info with icons and descriptions
+    section_info = [
+        {
+            "id": "current_activities",
+            "name": "Current Activities",
+            "icon": "📊",
+            "description": "What are you currently working on?"
+        },
+        {
+            "id": "upcoming_activities",
+            "name": "Upcoming Activities",
+            "icon": "📅",
+            "description": "What activities are planned for the future?"
+        },
+        {
+            "id": "accomplishments",
+            "name": "Last Week's Accomplishments",
+            "icon": "✓",
+            "description": "What did you accomplish last week?"
+        },
+        {
+            "id": "action_items",
+            "name": "Action Items",
+            "icon": "📋",
+            "description": "Follow-ups and next steps"
+        }
+    ]
     
-    with col1:
-        st.session_state.show_current_activities = st.checkbox(
-            "Current Activities", 
-            value=st.session_state.show_current_activities,
-            help="What are you currently working on?"
-        )
-        st.session_state.show_accomplishments = st.checkbox(
-            "Last Week's Accomplishments", 
-            value=st.session_state.show_accomplishments,
-            help="What did you accomplish last week?"
-        )
+    # Create a container for a stylized toolbar
+    toolbar = st.container()
     
-    with col2:
-        st.session_state.show_upcoming_activities = st.checkbox(
-            "Upcoming Activities", 
-            value=st.session_state.show_upcoming_activities,
-            help="What activities are planned for the future?"
-        )
-        st.session_state.show_action_items = st.checkbox(
-            "Action Items", 
-            value=st.session_state.show_action_items,
-            help="Follow-ups and next steps"
-        )
+    with toolbar:
+        cols = st.columns(len(section_info))
+        
+        for i, section in enumerate(section_info):
+            section_id = section["id"]
+            key_name = f"show_{section_id}"
+            
+            with cols[i]:
+                # Create a card-like appearance for each section toggle
+                st.markdown(
+                    f"""
+                    <div style="text-align: center; padding: 5px;">
+                        <div style="font-size: 24px;">{section["icon"]}</div>
+                        <div style="font-weight: bold;">{section["name"]}</div>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+                
+                # Use checkbox with the section_id to make keys unique
+                st.session_state[key_name] = st.checkbox(
+                    "Include",
+                    value=st.session_state.get(key_name, True),
+                    key=f"section_toggle_{section_id}",
+                    help=section["description"]
+                )
     
     st.divider()
 
@@ -91,10 +123,38 @@ def render_modular_weekly_report(is_editing=False):
     if st.session_state.show_action_items:
         render_simple_action_items()
 
-    # Optional Sections Toggle
-    render_optional_section_toggles()
-
-    # Optional Sections Content
+    # Optional Sections - now also as a toolbar
+    st.subheader("Additional Sections")
+    st.write("Select which additional sections you'd like to include:")
+    
+    # Get the list of optional sections
+    from utils.constants import OPTIONAL_SECTIONS
+    
+    # Create a stylized toolbar for optional sections
+    opt_cols = st.columns(len(OPTIONAL_SECTIONS))
+    
+    for i, section in enumerate(OPTIONAL_SECTIONS):
+        with opt_cols[i]:
+            # Create a card-like appearance for each optional section toggle
+            st.markdown(
+                f"""
+                <div style="text-align: center; padding: 5px;">
+                    <div style="font-size: 24px;">{section["icon"]}</div>
+                    <div style="font-weight: bold;">{section["label"]}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+            
+            # Use checkbox with a unique key
+            st.session_state[section["key"]] = st.checkbox(
+                "Include",
+                value=st.session_state.get(section["key"], False),
+                key=f"optional_section_{section['key']}",
+                help=section["description"]
+            )
+    
+    # Render the optional sections content
     render_all_optional_sections()
 
     # Form Actions
@@ -229,8 +289,8 @@ def render_enhanced_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'billable', billable)
     
-    # Third row: Deadline toggle, Deadline, Recurrent toggle
-    col5, col6, col7 = st.columns(3)
+    # Third row: Deadline toggle and Recurrent toggle
+    col5, col6 = st.columns(2)
     
     with col5:
         # Initialize has_deadline in activity if it doesn't exist
@@ -243,19 +303,18 @@ def render_enhanced_current_activity_form(index, activity):
             key=f"curr_has_deadline_{index}"
         )
         session.update_current_activity(index, 'has_deadline', has_deadline)
-    
-    with col6:
-        # Handle date conversion
-        deadline_date = None
-        if activity.get('deadline'):
-            try:
-                from datetime import datetime
-                deadline_date = datetime.strptime(activity['deadline'], '%Y-%m-%d').date()
-            except ValueError:
-                deadline_date = None
         
         # Only show date picker if has_deadline is checked
         if has_deadline:
+            # Handle date conversion
+            deadline_date = None
+            if activity.get('deadline'):
+                try:
+                    from datetime import datetime
+                    deadline_date = datetime.strptime(activity['deadline'], '%Y-%m-%d').date()
+                except ValueError:
+                    deadline_date = None
+            
             deadline = st.date_input(
                 'Deadline', 
                 value=deadline_date,
@@ -266,7 +325,7 @@ def render_enhanced_current_activity_form(index, activity):
             # Clear deadline if has_deadline is unchecked
             session.update_current_activity(index, 'deadline', '')
     
-    with col7:
+    with col6:
         # Initialize is_recurrent in activity if it doesn't exist
         if 'is_recurrent' not in activity:
             activity['is_recurrent'] = False
@@ -281,11 +340,12 @@ def render_enhanced_current_activity_form(index, activity):
     
     # Fourth row: Progress with slider and manual input
     st.write('Progress:')
-    col8, col9 = st.columns([3, 1])
+    prog_col1, prog_col2 = st.columns([5, 1])
     
-    with col8:
+    with prog_col1:
+        # Use slider for progress
         progress = st.slider(
-            '% Complete', 
+            'Progress %', 
             min_value=0, 
             max_value=100, 
             value=activity.get('progress', 50), 
@@ -293,15 +353,15 @@ def render_enhanced_current_activity_form(index, activity):
             label_visibility="collapsed"
         )
     
-    with col9:
-        # Manual progress input
+    with prog_col2:
+        # Manual progress input as a small number input
         manual_progress = st.number_input(
-            'Manual %', 
+            '%', 
             min_value=0, 
             max_value=100, 
             value=progress,
             key=f"curr_prog_manual_{index}",
-            label_visibility="collapsed"
+            label_visibility="visible"
         )
         # Use manual input if it differs from slider
         if manual_progress != progress:

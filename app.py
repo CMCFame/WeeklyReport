@@ -273,7 +273,7 @@ def render_weekly_report_page():
     # Check if we're in edit mode
     is_editing = st.session_state.get('editing_report', False)
     
-    # Use the new modular weekly report component
+    # Use the updated modular weekly report component
     from components.modular_weekly_report import render_modular_weekly_report
     render_modular_weekly_report(is_editing)
     
