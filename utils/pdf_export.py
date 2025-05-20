@@ -64,7 +64,9 @@ class ReportPDF(FPDF):
         # Title
         if title is None:
             title = "Untitled"
-        self.cell(0, 6, title, 'B', 1, 'L')
+        
+        # Use multi_cell instead of cell for section titles to enable wrapping
+        self.multi_cell(0, 6, title, 'B', 'L')
         # Line break
         self.ln(4)
         
@@ -131,8 +133,11 @@ class ReportPDF(FPDF):
         # Ensure text is a string
         if not isinstance(text, str):
             text = str(text)
-            
-        self.multi_cell(0, 5, text)
+        
+        # Use multi_cell instead of cell for main text to enable wrapping
+        remaining_width = self.w - self.r_margin - self.l_margin - 30
+        current_x = self.x
+        self.multi_cell(remaining_width, 5, text)
         
     def add_list_item(self, text, indent=0, bullet='-'):  # Changed bullet to '-' character
         """Add a list item.
@@ -149,8 +154,11 @@ class ReportPDF(FPDF):
         # Ensure text is a string
         if not isinstance(text, str):
             text = str(text)
-            
-        self.multi_cell(0, 5, text)
+        
+        # Calculate remaining width for the text
+        remaining_width = self.w - self.r_margin - self.x
+        # Use multi_cell with calculated width to enable wrapping
+        self.multi_cell(remaining_width, 5, text)
 
 def export_report_to_pdf(report_data):
     """Export a report to PDF.
@@ -175,12 +183,7 @@ def export_report_to_pdf(report_data):
         pdf.alias_nb_pages()
         pdf.add_page()
         
-        # Report header
-        pdf.set_font('Arial', 'B', 16)
-        pdf.cell(0, 10, "Weekly Activity Report", 0, 1, 'C')
-        pdf.ln(5)
-        
-        # Report metadata
+        # Report metadata (removed duplicate header)
         pdf.set_font('Arial', '', 12)
         pdf.cell(0, 10, f"Name: {report_data.get('name', 'Anonymous')}", 0, 1)
         pdf.cell(0, 10, f"Week: {report_data.get('reporting_week', 'Unknown')}", 0, 1)
@@ -216,7 +219,9 @@ def export_report_to_pdf(report_data):
                 status_line = f"Status: {activity.get('status', 'Unknown')} | Priority: {activity.get('priority', 'Medium')}"
                 if activity.get('deadline'):
                     status_line += f" | Deadline: {activity.get('deadline')}"
-                pdf.cell(0, 5, status_line, 0, 1)
+                
+                # Use multi_cell instead of cell for status_line to enable wrapping
+                pdf.multi_cell(0, 5, status_line, 0, 'L')
                 
                 # Progress bar
                 pdf.cell(0, 5, "Progress:", 0, 1)
@@ -252,10 +257,10 @@ def export_report_to_pdf(report_data):
                     project_text += f" / {activity.get('milestone')}"
                 pdf.add_text_with_label("Project:", project_text)
                 
-                # Priority and start date
-                pdf.cell(0, 5, f"Priority: {activity.get('priority', 'Medium')}", 0, 1)
+                # Priority and start date - use multi_cell for better text wrapping
+                pdf.multi_cell(0, 5, f"Priority: {activity.get('priority', 'Medium')}", 0, 'L')
                 if activity.get('expected_start'):
-                    pdf.cell(0, 5, f"Expected Start: {activity.get('expected_start')}", 0, 1)
+                    pdf.multi_cell(0, 5, f"Expected Start: {activity.get('expected_start')}", 0, 'L')
                     
                 pdf.ln(5)
         
@@ -388,22 +393,20 @@ def export_objective_to_pdf(objective_data):
         pdf.alias_nb_pages()
         pdf.add_page()
         
-        # Objective header
-        pdf.set_font('Arial', 'B', 16)
+        # Objective metadata (no need for duplicate header)
+        pdf.set_font('Arial', '', 12)
         title = objective_data.get('title', 'Untitled Objective')
-        pdf.cell(0, 10, title, 0, 1, 'C')
+        pdf.multi_cell(0, 10, title, 0, 'C')
         pdf.ln(5)
         
-        # Objective metadata
-        pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 10, f"Level: {objective_data.get('level', 'unknown').capitalize()}", 0, 1)
+        pdf.multi_cell(0, 10, f"Level: {objective_data.get('level', 'unknown').capitalize()}", 0, 'L')
         
         if objective_data.get('level') == 'team':
-            pdf.cell(0, 10, f"Team: {objective_data.get('team', 'Unassigned')}", 0, 1)
+            pdf.multi_cell(0, 10, f"Team: {objective_data.get('team', 'Unassigned')}", 0, 'L')
         
-        pdf.cell(0, 10, f"Owner: {objective_data.get('owner_name', 'Unassigned')}", 0, 1)
-        pdf.cell(0, 10, f"Period: {objective_data.get('period', 'Unknown')}", 0, 1)
-        pdf.cell(0, 10, f"Status: {objective_data.get('status', 'Unknown')}", 0, 1)
+        pdf.multi_cell(0, 10, f"Owner: {objective_data.get('owner_name', 'Unassigned')}", 0, 'L')
+        pdf.multi_cell(0, 10, f"Period: {objective_data.get('period', 'Unknown')}", 0, 'L')
+        pdf.multi_cell(0, 10, f"Status: {objective_data.get('status', 'Unknown')}", 0, 'L')
         pdf.ln(5)
         
         # Description
