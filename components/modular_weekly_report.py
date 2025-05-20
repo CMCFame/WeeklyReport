@@ -8,10 +8,11 @@ from components.current_activities import render_current_activities
 from components.upcoming_activities import render_upcoming_activities
 from components.simple_accomplishments import render_simple_accomplishments
 from components.simple_action_items import render_simple_action_items
-from components.optional_sections import render_optional_section_toggles, render_all_optional_sections
+from components.optional_sections import render_all_optional_sections
+from utils.constants import OPTIONAL_SECTIONS
 
 def render_modular_weekly_report(is_editing=False):
-    """Render the modular weekly report form with unified section selection toolbar.
+    """Render the modular weekly report form with dropdown section selection.
     
     Args:
         is_editing (bool): Whether we're in edit mode
@@ -36,123 +37,90 @@ def render_modular_weekly_report(is_editing=False):
     # User Information Section (always shown)
     render_user_info()
 
-    # Initialize section visibility in session state if not present
-    if "show_current_activities" not in st.session_state:
-        st.session_state.show_current_activities = True
-    if "show_upcoming_activities" not in st.session_state:
-        st.session_state.show_upcoming_activities = True
-    if "show_accomplishments" not in st.session_state:
-        st.session_state.show_accomplishments = True
-    if "show_action_items" not in st.session_state:
-        st.session_state.show_action_items = True
-
-    # Unified Section Toolbar - use icons and consistent styling
+    # Section selection dropdown
     st.subheader("Report Sections")
     st.write("Select which sections to include in your report:")
     
-    # Define section info with icons and descriptions
-    section_info = [
-        {
-            "id": "current_activities",
-            "name": "Current Activities",
-            "icon": "📊",
-            "description": "What are you currently working on?"
-        },
-        {
-            "id": "upcoming_activities",
-            "name": "Upcoming Activities",
-            "icon": "📅",
-            "description": "What activities are planned for the future?"
-        },
-        {
-            "id": "accomplishments",
-            "name": "Last Week's Accomplishments",
-            "icon": "✓",
-            "description": "What did you accomplish last week?"
-        },
-        {
-            "id": "action_items",
-            "name": "Action Items",
-            "icon": "📋",
-            "description": "Follow-ups and next steps"
-        }
+    # Define available sections with their IDs, names and icons
+    available_sections = [
+        {"id": "current_activities", "name": "Current Activities", "icon": "📊"},
+        {"id": "upcoming_activities", "name": "Upcoming Activities", "icon": "📅"},
+        {"id": "accomplishments", "name": "Last Week's Accomplishments", "icon": "✓"},
+        {"id": "action_items", "name": "Action Items", "icon": "📋"}
     ]
     
-    # Create a container for a stylized toolbar
-    toolbar = st.container()
+    # Initialize section visibility in session state if not present
+    for section in available_sections:
+        section_key = f"show_{section['id']}"
+        if section_key not in st.session_state:
+            # Default all sections on except upcoming activities
+            default_value = True if section['id'] != 'upcoming_activities' else False
+            st.session_state[section_key] = default_value
     
-    with toolbar:
-        cols = st.columns(len(section_info))
-        
-        for i, section in enumerate(section_info):
-            section_id = section["id"]
-            key_name = f"show_{section_id}"
-            
-            with cols[i]:
-                # Create a card-like appearance for each section toggle
-                st.markdown(
-                    f"""
-                    <div style="text-align: center; padding: 5px;">
-                        <div style="font-size: 24px;">{section["icon"]}</div>
-                        <div style="font-weight: bold;">{section["name"]}</div>
-                    </div>
-                    """,
-                    unsafe_allow_html=True
-                )
-                
-                # Use checkbox with the section_id to make keys unique
-                st.session_state[key_name] = st.checkbox(
-                    "Include",
-                    value=st.session_state.get(key_name, True),
-                    key=f"section_toggle_{section_id}",
-                    help=section["description"]
-                )
+    # Create options for the multiselect with icons
+    section_options = [f"{section['icon']} {section['name']}" for section in available_sections]
+    
+    # Determine which options should be selected by default
+    default_selections = []
+    for i, section in enumerate(available_sections):
+        if st.session_state.get(f"show_{section['id']}", False):
+            default_selections.append(section_options[i])
+    
+    # Use multiselect for section selection
+    selected_sections = st.multiselect(
+        "Sections to include",
+        options=section_options,
+        default=default_selections,
+        key="report_sections_multiselect"
+    )
+    
+    # Update session state based on selections
+    for i, section in enumerate(available_sections):
+        section_key = f"show_{section['id']}"
+        section_option = section_options[i]
+        st.session_state[section_key] = section_option in selected_sections
     
     st.divider()
 
     # Conditional rendering of sections
-    if st.session_state.show_current_activities:
+    if st.session_state.get("show_current_activities", True):
         render_enhanced_current_activities()
 
-    if st.session_state.show_upcoming_activities:
+    if st.session_state.get("show_upcoming_activities", False):
         render_upcoming_activities()
 
-    if st.session_state.show_accomplishments:
+    if st.session_state.get("show_accomplishments", True):
         render_simple_accomplishments()
 
-    if st.session_state.show_action_items:
+    if st.session_state.get("show_action_items", True):
         render_simple_action_items()
 
-    # Optional Sections - now also as a toolbar
+    # Additional Sections selection with multiselect
     st.subheader("Additional Sections")
     st.write("Select which additional sections you'd like to include:")
     
-    # Get the list of optional sections
-    from utils.constants import OPTIONAL_SECTIONS
+    # Create options for additional sections multiselect with icons
+    optional_section_options = [f"{section['icon']} {section['label']}" for section in OPTIONAL_SECTIONS]
     
-    # Create a stylized toolbar for optional sections
-    opt_cols = st.columns(len(OPTIONAL_SECTIONS))
-    
+    # Determine which optional sections should be selected by default
+    default_optional_selections = []
     for i, section in enumerate(OPTIONAL_SECTIONS):
-        with opt_cols[i]:
-            # Create a card-like appearance for each optional section toggle
-            st.markdown(
-                f"""
-                <div style="text-align: center; padding: 5px;">
-                    <div style="font-size: 24px;">{section["icon"]}</div>
-                    <div style="font-weight: bold;">{section["label"]}</div>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-            
-            # Use checkbox with a unique key
-            st.session_state[section["key"]] = st.checkbox(
-                "Include",
-                value=st.session_state.get(section["key"], False),
-                key=f"optional_section_{section['key']}",
-                help=section["description"]
-            )
+        if st.session_state.get(section['key'], False):
+            default_optional_selections.append(optional_section_options[i])
+    
+    # Use multiselect for optional section selection
+    selected_optional_sections = st.multiselect(
+        "Additional sections to include",
+        options=optional_section_options,
+        default=default_optional_selections,
+        key="optional_sections_multiselect"
+    )
+    
+    # Update session state based on selections
+    for i, section in enumerate(OPTIONAL_SECTIONS):
+        section_key = section['key']
+        section_option = optional_section_options[i]
+        st.session_state[section_key] = section_option in selected_optional_sections
     
     # Render the optional sections content
     render_all_optional_sections()
@@ -167,7 +135,7 @@ def render_enhanced_current_activities():
     
     # Handle empty state - add a default activity if none exist
     if not st.session_state.current_activities:
-        if st.button('+ Add First Activity', use_container_width=True):
+        if st.button('+ Add First Activity', use_container_width=True, key="btn_add_first_activity"):
             session.add_current_activity()
             st.rerun()
         return
@@ -181,7 +149,7 @@ def render_enhanced_current_activities():
             render_enhanced_current_activity_form(i, activity)
     
     # Add activity button
-    if st.button('+ Add Another Activity', use_container_width=True):
+    if st.button('+ Add Another Activity', use_container_width=True, key="btn_add_another_activity"):
         session.add_current_activity()
         st.rerun()
 
@@ -392,33 +360,33 @@ def render_form_actions(is_editing=False):
         col1, col2, col3 = st.columns([1, 1, 1])
 
         with col1:
-            if st.button('Save Changes', use_container_width=True, type="primary"):
+            if st.button('Save Changes', use_container_width=True, type="primary", key="btn_save_changes"):
                 save_current_report('submitted', is_update=True)
 
         with col2:
             # Cancel editing button
-            if st.button('Cancel Editing', use_container_width=True):
+            if st.button('Cancel Editing', use_container_width=True, key="btn_cancel_editing"):
                 # Mark for cancellation
                 st.session_state.cancel_editing = True
                 st.rerun()
 
         with col3:
             # Reset changes button
-            if st.button('Reset Changes', use_container_width=True):
+            if st.button('Reset Changes', use_container_width=True, key="btn_reset_changes"):
                 clear_form_callback()
     else:
         col1, col2, col3 = st.columns([1, 1, 1])
 
         with col1:
-            if st.button('Save Draft', use_container_width=True):
+            if st.button('Save Draft', use_container_width=True, key="btn_save_draft"):
                 save_current_report('draft')
 
         with col2:
-            if st.button('Clear Form', use_container_width=True):
+            if st.button('Clear Form', use_container_width=True, key="btn_clear_form"):
                 clear_form_callback()
 
         with col3:
-            if st.button('Submit Report', use_container_width=True, type="primary"):
+            if st.button('Submit Report', use_container_width=True, type="primary", key="btn_submit_report"):
                 save_current_report('submitted')
 
 def clear_form_callback():

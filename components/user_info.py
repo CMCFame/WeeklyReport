@@ -40,15 +40,18 @@ def render_user_info():
         
         st.text_input(
             "Name",
-            key="name",
+            key="user_info_name_input",  # Add unique key
+            value=st.session_state.get("name", ""),
             help="Enter your full name"
         )
+        # Manually update the session state since we're using a custom key
+        st.session_state.name = st.session_state.get("user_info_name_input", "")
 
     with col2:
         # Use a date picker to select any date within the reporting week
         week_date = st.date_input(
             "Reporting Week (select any date within that week)",
-            key="reporting_week_date",
+            key="user_info_date_input",  # Add unique key
             help="Pick a date; the app will infer the ISO week number"
         )
         # Derive ISO week number and year
@@ -58,7 +61,6 @@ def render_user_info():
         st.session_state.reporting_week = week_str
         # Show the formatted week to the user
         st.caption(f"Reporting Week: {week_str}")
-
 
 def render_previous_reports_dropdown():
     """Render a dropdown of past reports and load on change."""
@@ -84,10 +86,23 @@ def render_previous_reports_dropdown():
             "Load Previous Report",
             options=list(range(len(labels))),
             format_func=lambda i: labels[i],
-            key="user_info_report_selector",  # Changed key to be more specific
+            key="user_info_prev_report_idx",  # Changed key to be more specific and unique
             help="Choose a past report to preload the form",
             on_change=_on_report_select
         )
 
     except Exception as e:
         st.error(f"Error loading reports: {e}")
+
+def _on_report_select():
+    """
+    Callback triggered by the selectbox.
+    Loads the selected report into session_state, then reruns,
+    so subsequent widgets pick up the new values.
+    """
+    idx = st.session_state.user_info_prev_report_idx - 1  # Updated key reference
+    if idx >= 0:
+        reports = st.session_state._cached_reports
+        report_data = reports[idx].copy()
+        session.load_report_data(report_data)
+        st.rerun()
