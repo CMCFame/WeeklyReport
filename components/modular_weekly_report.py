@@ -85,76 +85,14 @@ def render_modular_weekly_report(is_editing=False):
         key=f"consolidated_sections_multiselect_{timestamp_base}"
     )
     
-    # Check for sections that were deselected and have data
-    sections_with_data = {}
-    for i, section in enumerate(available_sections):
-        section_key = section["key"]
-        section_option = section_options[i]
-        
-        # Check if section was previously selected but is now being deselected
-        if st.session_state.get(section_key, False) and section_option not in selected_sections:
-            # Check if section has data
-            has_data = False
-            
-            # Check for data in main sections
-            if section["id"] == "current_activities" and st.session_state.get("current_activities", []):
-                has_data = True
-            elif section["id"] == "upcoming_activities" and st.session_state.get("upcoming_activities", []):
-                has_data = True
-            elif section["id"] == "accomplishments" and any(st.session_state.get("accomplishments", [""])):
-                has_data = True
-            elif section["id"] == "action_items" and (any(st.session_state.get("followups", [""])) or any(st.session_state.get("nextsteps", [""]))):
-                has_data = True
-            # Check for data in optional sections
-            elif section["type"] == "optional" and st.session_state.get(section["id"], ""):
-                has_data = True
-            
-            if has_data:
-                sections_with_data[section_option] = section_key
-    
-    # Show confirmation dialog if there are sections with data being deselected
-    if sections_with_data:
-        st.warning("⚠️ The following sections contain data that will be lost if disabled:")
-        for section_name in sections_with_data.keys():
-            st.write(f"- {section_name}")
-        
-        confirm_col1, confirm_col2 = st.columns(2)
-        with confirm_col1:
-            if st.button("Confirm Section Changes", type="primary", key=f"confirm_changes_{timestamp_base}"):
-                # Update section states based on selections
-                for i, section in enumerate(available_sections):
-                    section_key = section["key"]
-                    section_option = section_options[i]
-                    st.session_state[section_key] = section_option in selected_sections
-                    
-                    # Clear data for deselected sections
-                    if section_option not in selected_sections:
-                        if section["id"] == "current_activities":
-                            st.session_state.current_activities = []
-                        elif section["id"] == "upcoming_activities":
-                            st.session_state.upcoming_activities = []
-                        elif section["id"] == "accomplishments":
-                            st.session_state.accomplishments = [""]
-                        elif section["id"] == "action_items":
-                            st.session_state.followups = [""]
-                            st.session_state.nextsteps = [""]
-                        elif section["type"] == "optional":
-                            st.session_state[section["id"]] = ""
-                            st.session_state[section_key] = False
-                
-                st.success("Section changes applied!")
-                st.rerun()
-        
-        with confirm_col2:
-            if st.button("Cancel Changes", key=f"cancel_changes_{timestamp_base}"):
-                # Reset the multiselect to match the current state
-                st.rerun()
-    else:
-        # Update section states based on selections without confirmation
+    # Add an explicit Apply button
+    if st.button("Apply Section Selections", key=f"apply_sections_{timestamp_base}"):
+        # Update section states based on selections
         for i, section in enumerate(available_sections):
             section_key = section["key"]
             section_option = section_options[i]
             st.session_state[section_key] = section_option in selected_sections
+        st.rerun()
     
     st.divider()
 

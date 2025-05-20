@@ -276,24 +276,6 @@ def render_weekly_report_page():
     # Pass is_editing flag
     is_editing = st.session_state.get('editing_report', False)
     render_modular_weekly_report(is_editing)
-    
-    # Remove all the old direct rendering code
-    
-    # Header
-    if is_editing:
-        st.title('📝 Edit Weekly Activity Report')
-        st.write('Update your previous report')
-    else:
-        st.title('📋 Weekly Activity Report')
-        st.write('Use the sections below to document your week\'s work')
-
-    # Progress bar
-    completion_percentage = calculate_completion_percentage()
-    st.progress(completion_percentage / 100)
-    
-    # Pre-fill name from user profile if empty
-    if not st.session_state.get("name") and st.session_state.get("user_info"):
-        st.session_state.name = st.session_state.user_info.get("full_name", "")
 
 def render_form_actions(is_editing=False):
     """Render the form action buttons.
@@ -387,6 +369,9 @@ def save_current_report(status, is_update=False):
         st.success('Draft saved successfully!')
     else:
         st.success('Report submitted successfully!')
+        # Optional: reset form after successful submission
+        reset_form()
+        st.rerun()
 
 # Run the app
 if __name__ == '__main__':
