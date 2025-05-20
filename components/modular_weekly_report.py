@@ -8,11 +8,11 @@ from components.current_activities import render_current_activities
 from components.upcoming_activities import render_upcoming_activities
 from components.simple_accomplishments import render_simple_accomplishments
 from components.simple_action_items import render_simple_action_items
-from components.optional_sections import render_all_optional_sections
+from components.optional_sections import render_optional_section, render_all_optional_sections
 from utils.constants import OPTIONAL_SECTIONS
 
 def render_modular_weekly_report(is_editing=False):
-    """Render the modular weekly report form with dropdown section selection.
+    """Render the modular weekly report form with consolidated section selection.
     
     Args:
         is_editing (bool): Whether we're in edit mode
@@ -37,25 +37,34 @@ def render_modular_weekly_report(is_editing=False):
     # User Information Section (always shown)
     render_user_info()
 
-    # Section selection dropdown
+    # Consolidated section selection dropdown
     st.subheader("Report Sections")
     st.write("Select which sections to include in your report:")
     
-    # Define available sections with their IDs, names and icons
+    # Define ALL available sections (main + optional) with their IDs, names and icons
     available_sections = [
-        {"id": "current_activities", "name": "Current Activities", "icon": "📊"},
-        {"id": "upcoming_activities", "name": "Upcoming Activities", "icon": "📅"},
-        {"id": "accomplishments", "name": "Last Week's Accomplishments", "icon": "✓"},
-        {"id": "action_items", "name": "Action Items", "icon": "📋"}
+        {"id": "current_activities", "type": "main", "name": "Current Activities", "icon": "📊", "key": "show_current_activities"},
+        {"id": "upcoming_activities", "type": "main", "name": "Upcoming Activities", "icon": "📅", "key": "show_upcoming_activities"},
+        {"id": "accomplishments", "type": "main", "name": "Last Week's Accomplishments", "icon": "✓", "key": "show_accomplishments"},
+        {"id": "action_items", "type": "main", "name": "Action Items", "icon": "📋", "key": "show_action_items"}
     ]
+    
+    # Add optional sections to the list
+    for section in OPTIONAL_SECTIONS:
+        available_sections.append({
+            "id": section["content_key"],
+            "type": "optional",
+            "name": section["label"],
+            "icon": section["icon"],
+            "key": section["key"]
+        })
     
     # Initialize section visibility in session state if not present
     for section in available_sections:
-        section_key = f"show_{section['id']}"
-        if section_key not in st.session_state:
-            # Default all sections on except upcoming activities
-            default_value = True if section['id'] != 'upcoming_activities' else False
-            st.session_state[section_key] = default_value
+        if section["key"] not in st.session_state:
+            # Default only main sections on except upcoming activities
+            default_value = section["type"] == "main" and section["id"] != "upcoming_activities"
+            st.session_state[section["key"]] = default_value
     
     # Create options for the multiselect with icons
     section_options = [f"{section['icon']} {section['name']}" for section in available_sections]
@@ -63,7 +72,7 @@ def render_modular_weekly_report(is_editing=False):
     # Determine which options should be selected by default
     default_selections = []
     for i, section in enumerate(available_sections):
-        if st.session_state.get(f"show_{section['id']}", False):
+        if st.session_state.get(section["key"], False):
             default_selections.append(section_options[i])
     
     # Use multiselect for section selection
@@ -71,18 +80,18 @@ def render_modular_weekly_report(is_editing=False):
         "Sections to include",
         options=section_options,
         default=default_selections,
-        key="report_sections_multiselect"
+        key="consolidated_sections_multiselect"
     )
     
     # Update session state based on selections
     for i, section in enumerate(available_sections):
-        section_key = f"show_{section['id']}"
+        section_key = section["key"]
         section_option = section_options[i]
         st.session_state[section_key] = section_option in selected_sections
     
     st.divider()
 
-    # Conditional rendering of sections
+    # Render sections based on selections
     if st.session_state.get("show_current_activities", True):
         render_enhanced_current_activities()
 
@@ -95,35 +104,10 @@ def render_modular_weekly_report(is_editing=False):
     if st.session_state.get("show_action_items", True):
         render_simple_action_items()
 
-    # Additional Sections selection with multiselect
-    st.subheader("Additional Sections")
-    st.write("Select which additional sections you'd like to include:")
-    
-    # Create options for additional sections multiselect with icons
-    optional_section_options = [f"{section['icon']} {section['label']}" for section in OPTIONAL_SECTIONS]
-    
-    # Determine which optional sections should be selected by default
-    default_optional_selections = []
-    for i, section in enumerate(OPTIONAL_SECTIONS):
-        if st.session_state.get(section['key'], False):
-            default_optional_selections.append(optional_section_options[i])
-    
-    # Use multiselect for optional section selection
-    selected_optional_sections = st.multiselect(
-        "Additional sections to include",
-        options=optional_section_options,
-        default=default_optional_selections,
-        key="optional_sections_multiselect"
-    )
-    
-    # Update session state based on selections
-    for i, section in enumerate(OPTIONAL_SECTIONS):
-        section_key = section['key']
-        section_option = optional_section_options[i]
-        st.session_state[section_key] = section_option in selected_optional_sections
-    
-    # Render the optional sections content
-    render_all_optional_sections()
+    # Render optional sections
+    for section in OPTIONAL_SECTIONS:
+        if st.session_state.get(section["key"], False):
+            render_optional_section(section)
 
     # Form Actions
     render_form_actions(is_editing)
