@@ -1,5 +1,4 @@
-# components/modular_weekly_report.py
-"""Modular weekly report component for the Weekly Report app."""
+# components/modular_weekly_report.py (updated)
 
 import streamlit as st
 from utils import session
@@ -62,46 +61,110 @@ def render_modular_weekly_report(is_editing=False):
     # Initialize section visibility in session state if not present
     for section in available_sections:
         if section["key"] not in st.session_state:
-            # Default only main sections on except upcoming activities
-            default_value = section["type"] == "main" and section["id"] != "upcoming_activities"
-            st.session_state[section["key"]] = default_value
+            # Default to having NO sections selected
+            st.session_state[section["key"]] = False
     
     # Create options for the multiselect with icons
     section_options = [f"{section['icon']} {section['name']}" for section in available_sections]
     
-    # Determine which options should be selected by default
-    default_selections = []
+    # Determine which options are currently selected
+    current_selections = []
     for i, section in enumerate(available_sections):
         if st.session_state.get(section["key"], False):
-            default_selections.append(section_options[i])
+            current_selections.append(section_options[i])
     
     # Use multiselect for section selection
     selected_sections = st.multiselect(
         "Sections to include",
         options=section_options,
-        default=default_selections,
+        default=current_selections,
         key="consolidated_sections_multiselect"
     )
     
-    # Update session state based on selections
+    # Check for sections that were deselected and have data
+    sections_with_data = {}
     for i, section in enumerate(available_sections):
         section_key = section["key"]
         section_option = section_options[i]
-        st.session_state[section_key] = section_option in selected_sections
+        
+        # Check if section was previously selected but is now being deselected
+        if st.session_state.get(section_key, False) and section_option not in selected_sections:
+            # Check if section has data
+            has_data = False
+            
+            # Check for data in main sections
+            if section["id"] == "current_activities" and st.session_state.get("current_activities", []):
+                has_data = True
+            elif section["id"] == "upcoming_activities" and st.session_state.get("upcoming_activities", []):
+                has_data = True
+            elif section["id"] == "accomplishments" and any(st.session_state.get("accomplishments", [""])):
+                has_data = True
+            elif section["id"] == "action_items" and (any(st.session_state.get("followups", [""])) or any(st.session_state.get("nextsteps", [""]))):
+                has_data = True
+            # Check for data in optional sections
+            elif section["type"] == "optional" and st.session_state.get(section["id"], ""):
+                has_data = True
+            
+            if has_data:
+                sections_with_data[section_option] = section_key
+    
+    # Show confirmation dialog if there are sections with data being deselected
+    if sections_with_data:
+        st.warning("⚠️ The following sections contain data that will be lost if disabled:")
+        for section_name in sections_with_data.keys():
+            st.write(f"- {section_name}")
+        
+        confirm_col1, confirm_col2 = st.columns(2)
+        with confirm_col1:
+            if st.button("Confirm Section Changes", type="primary"):
+                # Update section states based on selections
+                for i, section in enumerate(available_sections):
+                    section_key = section["key"]
+                    section_option = section_options[i]
+                    st.session_state[section_key] = section_option in selected_sections
+                    
+                    # Clear data for deselected sections
+                    if section_option not in selected_sections:
+                        if section["id"] == "current_activities":
+                            st.session_state.current_activities = []
+                        elif section["id"] == "upcoming_activities":
+                            st.session_state.upcoming_activities = []
+                        elif section["id"] == "accomplishments":
+                            st.session_state.accomplishments = [""]
+                        elif section["id"] == "action_items":
+                            st.session_state.followups = [""]
+                            st.session_state.nextsteps = [""]
+                        elif section["type"] == "optional":
+                            st.session_state[section["id"]] = ""
+                            st.session_state[section_key] = False
+                
+                st.success("Section changes applied!")
+                st.rerun()
+        
+        with confirm_col2:
+            if st.button("Cancel Changes"):
+                # Reset the multiselect to match the current state
+                st.rerun()
+    else:
+        # Update section states based on selections without confirmation
+        for i, section in enumerate(available_sections):
+            section_key = section["key"]
+            section_option = section_options[i]
+            st.session_state[section_key] = section_option in selected_sections
     
     st.divider()
 
     # Render sections based on selections
-    if st.session_state.get("show_current_activities", True):
+    if st.session_state.get("show_current_activities", False):
         render_enhanced_current_activities()
 
     if st.session_state.get("show_upcoming_activities", False):
         render_upcoming_activities()
 
-    if st.session_state.get("show_accomplishments", True):
+    if st.session_state.get("show_accomplishments", False):
         render_simple_accomplishments()
 
-    if st.session_state.get("show_action_items", True):
+    if st.session_state.get("show_action_items", False):
         render_simple_action_items()
 
     # Render optional sections
@@ -119,13 +182,17 @@ def render_enhanced_current_activities():
     
     # Handle empty state - add a default activity if none exist
     if not st.session_state.current_activities:
-        if st.button('+ Add First Activity', use_container_width=True, key="btn_add_first_activity"):
+        import time
+        timestamp = int(time.time() * 1000)
+        if st.button('+ Add First Activity', use_container_width=True, key=f"btn_add_first_activity_{timestamp}"):
             session.add_current_activity()
             st.rerun()
         return
     
     # Render existing activities
+    import time
     for i, activity in enumerate(st.session_state.current_activities):
+        timestamp = int(time.time() * 1000)
         activity_title = activity.get('description', '')[:30] 
         activity_title = f"{activity_title}..." if activity_title else "New Activity"
         
@@ -133,12 +200,17 @@ def render_enhanced_current_activities():
             render_enhanced_current_activity_form(i, activity)
     
     # Add activity button
-    if st.button('+ Add Another Activity', use_container_width=True, key="btn_add_another_activity"):
+    import time
+    timestamp = int(time.time() * 1000)
+    if st.button('+ Add Another Activity', use_container_width=True, key=f"btn_add_another_activity_{timestamp}"):
         session.add_current_activity()
         st.rerun()
 
 def render_enhanced_current_activity_form(index, activity):
     """Render form fields for a current activity with enhanced options."""
+    import time
+    timestamp_base = int(time.time() * 1000) + index
+    
     # Get username for project filtering
     username = ""
     if st.session_state.get("user_info"):
@@ -168,7 +240,7 @@ def render_enhanced_current_activity_form(index, activity):
             'Project', 
             options=available_projects,
             index=available_projects.index(current_project) if current_project in available_projects else 0,
-            key=f"curr_proj_{index}",
+            key=f"curr_proj_{index}_{timestamp_base}",
             help="Select the project for this activity"
         )
         session.update_current_activity(index, 'project', project)
@@ -194,7 +266,7 @@ def render_enhanced_current_activity_form(index, activity):
             'Milestone', 
             options=available_milestones,
             index=available_milestones.index(current_milestone) if current_milestone in available_milestones else 0,
-            key=f"curr_mile_{index}",
+            key=f"curr_mile_{index}_{timestamp_base}",
             help="Select the milestone for this activity"
         )
         session.update_current_activity(index, 'milestone', milestone)
@@ -208,7 +280,7 @@ def render_enhanced_current_activity_form(index, activity):
             'Priority', 
             options=PRIORITY_OPTIONS, 
             index=PRIORITY_OPTIONS.index(activity.get('priority', 'Medium')) if activity.get('priority') in PRIORITY_OPTIONS else 1,
-            key=f"curr_prio_{index}"
+            key=f"curr_prio_{index}_{timestamp_base}"
         )
         session.update_current_activity(index, 'priority', priority)
     
@@ -218,7 +290,7 @@ def render_enhanced_current_activity_form(index, activity):
             'Status', 
             options=STATUS_OPTIONS, 
             index=STATUS_OPTIONS.index(activity.get('status', 'In Progress')) if activity.get('status') in STATUS_OPTIONS else 1,
-            key=f"curr_status_{index}"
+            key=f"curr_status_{index}_{timestamp_base}"
         )
         session.update_current_activity(index, 'status', status)
     
@@ -226,7 +298,7 @@ def render_enhanced_current_activity_form(index, activity):
         customer = st.text_input(
             'Customer', 
             value=activity.get('customer', ''), 
-            key=f"curr_cust_{index}",
+            key=f"curr_cust_{index}_{timestamp_base}",
             help="Client or internal team this work is for"
         )
         session.update_current_activity(index, 'customer', customer)
@@ -237,7 +309,7 @@ def render_enhanced_current_activity_form(index, activity):
             'Billable', 
             options=BILLABLE_OPTIONS, 
             index=BILLABLE_OPTIONS.index(activity.get('billable', '')) if activity.get('billable') in BILLABLE_OPTIONS else 0,
-            key=f"curr_bill_{index}"
+            key=f"curr_bill_{index}_{timestamp_base}"
         )
         session.update_current_activity(index, 'billable', billable)
     
@@ -252,7 +324,7 @@ def render_enhanced_current_activity_form(index, activity):
         has_deadline = st.checkbox(
             'Has Deadline', 
             value=activity.get('has_deadline', False),
-            key=f"curr_has_deadline_{index}"
+            key=f"curr_has_deadline_{index}_{timestamp_base}"
         )
         session.update_current_activity(index, 'has_deadline', has_deadline)
         
@@ -270,7 +342,7 @@ def render_enhanced_current_activity_form(index, activity):
             deadline = st.date_input(
                 'Deadline', 
                 value=deadline_date,
-                key=f"curr_dead_{index}"
+                key=f"curr_dead_{index}_{timestamp_base}"
             )
             session.update_current_activity(index, 'deadline', deadline.strftime('%Y-%m-%d') if deadline else '')
         else:
@@ -285,7 +357,7 @@ def render_enhanced_current_activity_form(index, activity):
         is_recurrent = st.checkbox(
             'Recurrent Activity', 
             value=activity.get('is_recurrent', False),
-            key=f"curr_recurrent_{index}",
+            key=f"curr_recurrent_{index}_{timestamp_base}",
             help="Check if this is a recurring task"
         )
         session.update_current_activity(index, 'is_recurrent', is_recurrent)
@@ -301,7 +373,7 @@ def render_enhanced_current_activity_form(index, activity):
             min_value=0, 
             max_value=100, 
             value=activity.get('progress', 50), 
-            key=f"curr_prog_slider_{index}",
+            key=f"curr_prog_slider_{index}_{timestamp_base}",
             label_visibility="collapsed"
         )
     
@@ -312,7 +384,7 @@ def render_enhanced_current_activity_form(index, activity):
             min_value=0, 
             max_value=100, 
             value=progress,
-            key=f"curr_prog_manual_{index}",
+            key=f"curr_prog_manual_{index}_{timestamp_base}",
             label_visibility="visible"
         )
         # Use manual input if it differs from slider
@@ -326,13 +398,13 @@ def render_enhanced_current_activity_form(index, activity):
     description = st.text_area(
         'Description', 
         value=activity.get('description', ''), 
-        key=f"curr_desc_{index}",
+        key=f"curr_desc_{index}_{timestamp_base}",
         height=100
     )
     session.update_current_activity(index, 'description', description)
     
     # Remove button
-    if st.button('Remove Activity', key=f"remove_curr_{index}"):
+    if st.button('Remove Activity', key=f"remove_curr_{index}_{timestamp_base}"):
         session.remove_current_activity(index)
         st.rerun()
 
@@ -340,37 +412,40 @@ def render_form_actions(is_editing=False):
     """Render the form action buttons."""
     st.divider()
     
+    import time
+    timestamp = int(time.time() * 1000)
+    
     if is_editing:
         col1, col2, col3 = st.columns([1, 1, 1])
 
         with col1:
-            if st.button('Save Changes', use_container_width=True, type="primary", key="btn_save_changes"):
+            if st.button('Save Changes', use_container_width=True, type="primary", key=f"btn_save_changes_{timestamp}"):
                 save_current_report('submitted', is_update=True)
 
         with col2:
             # Cancel editing button
-            if st.button('Cancel Editing', use_container_width=True, key="btn_cancel_editing"):
+            if st.button('Cancel Editing', use_container_width=True, key=f"btn_cancel_editing_{timestamp}"):
                 # Mark for cancellation
                 st.session_state.cancel_editing = True
                 st.rerun()
 
         with col3:
             # Reset changes button
-            if st.button('Reset Changes', use_container_width=True, key="btn_reset_changes"):
+            if st.button('Reset Changes', use_container_width=True, key=f"btn_reset_changes_{timestamp}"):
                 clear_form_callback()
     else:
         col1, col2, col3 = st.columns([1, 1, 1])
 
         with col1:
-            if st.button('Save Draft', use_container_width=True, key="btn_save_draft"):
+            if st.button('Save Draft', use_container_width=True, key=f"btn_save_draft_{timestamp}"):
                 save_current_report('draft')
 
         with col2:
-            if st.button('Clear Form', use_container_width=True, key="btn_clear_form"):
+            if st.button('Clear Form', use_container_width=True, key=f"btn_clear_form_{timestamp}"):
                 clear_form_callback()
 
         with col3:
-            if st.button('Submit Report', use_container_width=True, type="primary", key="btn_submit_report"):
+            if st.button('Submit Report', use_container_width=True, type="primary", key=f"btn_submit_report_{timestamp}"):
                 save_current_report('submitted')
 
 def clear_form_callback():
