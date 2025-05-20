@@ -25,19 +25,29 @@ def render_user_info():
         if not st.session_state.get("name") and default_name:
             st.session_state.name = default_name
         
-        # Use unique key for the name input
+        # Instead of using key parameter, we'll use a completely different approach
+        # We'll generate a unique widget label that includes a timestamp
+        unique_timestamp = str(datetime.now().timestamp()).replace(".", "_")
+        widget_label = f"Name##{unique_timestamp}"
+        
         name_value = st.text_input(
-            "Name",
+            widget_label,  # Use unique label instead of key
             value=st.session_state.get("name", ""),
-            key="modular_report_name_input",  # Completely new key
-            help="Enter your full name"
+            help="Enter your full name",
+            label_visibility="collapsed"  # Hide the unique timestamp label
         )
+        
+        # Display a visible label manually
+        st.caption("Name")
         
         # Manually update the session state
         st.session_state.name = name_value
 
     with col2:
-        # Use a date picker to select any date within the reporting week
+        # Similar approach for date input
+        unique_timestamp2 = str(datetime.now().timestamp() + 1).replace(".", "_")
+        date_label = f"Reporting Week##{unique_timestamp2}"
+        
         # Get default date from session state if available
         default_date = None
         if st.session_state.get("reporting_week_date"):
@@ -48,13 +58,16 @@ def render_user_info():
         else:
             default_date = datetime.now().date()
             
-        # Use unique key for the date input
+        # Use unique label for the date input
         week_date = st.date_input(
-            "Reporting Week (select any date within that week)",
+            date_label,
             value=default_date,
-            key="modular_report_week_date",  # Completely new key
-            help="Pick a date; the app will infer the ISO week number"
+            help="Pick a date; the app will infer the ISO week number",
+            label_visibility="collapsed"
         )
+        
+        # Display a visible label manually
+        st.caption("Reporting Week (select any date within that week)")
         
         # Store the selected date in session state
         st.session_state.reporting_week_date = week_date
@@ -77,8 +90,9 @@ def render_previous_reports_dropdown():
         if not reports:
             return
 
-        # Cache for callback access
-        st.session_state._cached_reports = reports
+        # Cache reports in a global variable instead of session state
+        global cached_reports
+        cached_reports = reports
 
         # Build labels, with an empty placeholder first
         labels = [""] + [
@@ -88,22 +102,22 @@ def render_previous_reports_dropdown():
             for r in reports
         ]
 
-        # Create a unique key for the report selection index
-        if 'modular_report_selection_index' not in st.session_state:
-            st.session_state.modular_report_selection_index = 0
-            
-        # Selectbox with a completely new, unique key
+        # Create a unique label for the selectbox
+        unique_timestamp = str(datetime.now().timestamp() + 2).replace(".", "_")
+        select_label = f"Load Previous Report##{unique_timestamp}"
+        
+        # Selectbox with a unique label
         selected_index = st.selectbox(
-            "Load Previous Report",
+            select_label,
             options=list(range(len(labels))),
             format_func=lambda i: labels[i],
-            key="modular_report_selection_dropdown",  # Completely new key
-            index=st.session_state.modular_report_selection_index,
-            help="Choose a past report to preload the form"
+            index=0,
+            help="Choose a past report to preload the form",
+            label_visibility="collapsed"
         )
         
-        # Store the selected index
-        st.session_state.modular_report_selection_index = selected_index
+        # Display a visible label manually
+        st.caption("Load Previous Report")
         
         # Handle selection change
         if selected_index > 0:  # If not the empty option
