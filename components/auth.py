@@ -394,59 +394,68 @@ def render_admin_user_management():
                 st.session_state.edit_user = None
                 st.rerun()
         else:
+            # Handle user deletion confirmation
+            if "delete_confirmation_user" not in st.session_state:
+                st.session_state.delete_confirmation_user = None
+            
             # Display action buttons for each user
             for i, user in enumerate(users):
                 username = user.get("username", "")
-                if username != "admin":  # Protect the admin user
-                    cols = st.columns([3, 1, 1])
-                    with cols[0]:
-                        st.write(f"**{user.get('full_name', '')}** ({username}) - *{user_auth.ROLES.get(user.get('role', ''), 'Unknown')}*")
-                    with cols[1]:
-                        # Add Edit button
-                        edit_key = f"edit_user_{i}"
-                        if st.button("Edit", key=edit_key):
+                
+                # Skip the admin user (can't delete it)
+                if username == "admin":
+                    st.write(f"**{user.get('full_name', '')}** ({username}) - *{user_auth.ROLES.get(user.get('role', ''), 'Unknown')}*")
+                    st.divider()
+                    continue
+                
+                # Create a container for this user
+                user_container = st.container()
+                
+                with user_container:
+                    # Display user info
+                    st.write(f"**{user.get('full_name', '')}** ({username}) - *{user_auth.ROLES.get(user.get('role', ''), 'Unknown')}*")
+                    
+                    # Action buttons
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        # Edit button
+                        if st.button("Edit", key=f"edit_btn_{username}"):
                             st.session_state.edit_user = username
                             st.rerun()
-                    with cols[2]:
-                        delete_key = f"delete_user_{i}"
-                        if st.button("Delete", key=delete_key):
-                            # Store the username to delete in session state
-                            st.session_state.delete_confirmation_user = username
-                            st.rerun()
                     
-                    # Check if this user is pending deletion (confirmation dialog)
-                    if st.session_state.get("delete_confirmation_user") == username:
+                    with col2:
+                        # Delete button (only shown if not in confirmation mode for this user)
+                        if st.session_state.delete_confirmation_user != username:
+                            if st.button("Delete", key=f"delete_btn_{username}"):
+                                st.session_state.delete_confirmation_user = username
+                                st.rerun()
+                    
+                    # Show confirmation dialog if this is the user to delete
+                    if st.session_state.delete_confirmation_user == username:
                         st.warning(f"Are you sure you want to delete user '{username}'?")
+                        
                         confirm_col1, confirm_col2 = st.columns(2)
                         
                         with confirm_col1:
-                            # Generate a unique key for this specific confirmation
-                            confirm_key = f"confirm_delete_{username}_{i}"
-                            if st.button("Yes, Delete", key=confirm_key):
-                                # Call delete_user correctly with the username
-                                if user_auth.delete_user(username):
-                                    # Clear the confirmation state
-                                    if "delete_confirmation_user" in st.session_state:
-                                        del st.session_state.delete_confirmation_user
+                            if st.button("Yes, Delete", key=f"confirm_del_{username}"):
+                                # Call delete_user with the username
+                                success = user_auth.delete_user(username)
+                                if success:
                                     st.success(f"User {username} deleted successfully.")
+                                    # Clear confirmation state
+                                    st.session_state.delete_confirmation_user = None
                                     st.rerun()
                                 else:
                                     st.error(f"Failed to delete user {username}.")
                         
                         with confirm_col2:
-                            # Generate a unique key for this specific cancellation
-                            cancel_key = f"cancel_delete_{username}_{i}"
-                            if st.button("Cancel", key=cancel_key):
-                                # Clear the confirmation state
-                                if "delete_confirmation_user" in st.session_state:
-                                    del st.session_state.delete_confirmation_user
+                            if st.button("Cancel", key=f"cancel_del_{username}"):
+                                # Clear confirmation state
+                                st.session_state.delete_confirmation_user = None
                                 st.rerun()
-                    
-                    st.divider()
-                else:
-                    # Just display admin user without delete option
-                    st.write(f"**{user.get('full_name', '')}** ({username}) - *{user_auth.ROLES.get(user.get('role', ''), 'Unknown')}*")
-                    st.divider()
+                
+                st.divider()
 
 def check_authentication():
     """Check if user is authenticated and show login page if not.

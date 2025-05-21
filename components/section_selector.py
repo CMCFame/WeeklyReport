@@ -63,13 +63,11 @@ def render_section_selector():
     current_selections = [f"{section['icon']} {section['label']}" for section in ALL_SECTIONS 
                          if st.session_state.get(section['key'], section['key'] == 'show_current_activities')]
     
-    # Create a multiselect widget
-    st.write("Sections to include")
+    # Create a multiselect widget with a proper label
     selected_sections = st.multiselect(
-        label="",
+        label="Sections to include",  # Add a proper label here
         options=section_labels,
-        default=current_selections,
-        label_visibility="collapsed"
+        default=current_selections
     )
     
     # Update session state based on selections
