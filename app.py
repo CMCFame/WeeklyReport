@@ -303,12 +303,10 @@ def render_weekly_report_page():
     
     # Section Selector
     with st.expander("🔧 Customize Report Sections", expanded=False):
-        from components.section_selector import render_section_selector
         render_section_selector()
     
     # Render each section based on toggle state
     if st.session_state.get('show_current_activities', True):
-        from components.enhanced_current_activities import render_enhanced_current_activities
         render_enhanced_current_activities()
     
     if st.session_state.get('show_upcoming_activities', True):

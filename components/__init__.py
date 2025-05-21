@@ -27,13 +27,13 @@ from components.simple_action_items import render_simple_action_items
 # Import enhanced components
 from components.enhanced_accomplishments import render_enhanced_accomplishments
 from components.enhanced_action_items import render_enhanced_action_items
+from components.enhanced_current_activities import render_enhanced_current_activities
 
 # Import import components
 from components.user_import import render_user_import
 from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
 from components.section_selector import render_section_selector
-from components.enhanced_current_activities import render_enhanced_current_activities
 
 # Import real implementations of previously placeholder components
 from components.report_templates import render_report_templates as render_real_report_templates

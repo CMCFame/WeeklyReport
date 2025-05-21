@@ -6,8 +6,6 @@ PRIORITY_OPTIONS = ["High", "Medium", "Low"]
 STATUS_OPTIONS = ["Not Started", "In Progress", "Blocked", "Completed"]
 BILLABLE_OPTIONS = ["", "Yes", "No"]
 
-# utils/constants.py (update the DEFAULT_CURRENT_ACTIVITY)
-
 # Current activities default
 DEFAULT_CURRENT_ACTIVITY = {
     'project': '',
