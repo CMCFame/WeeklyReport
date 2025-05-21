@@ -22,15 +22,15 @@ def init_session_state():
     if 'reporting_week' not in st.session_state:
         st.session_state.reporting_week = ""
     
-    # Section visibility
+    # Section visibility - only Current Activities enabled by default
     if 'show_current_activities' not in st.session_state:
         st.session_state.show_current_activities = True
     if 'show_upcoming_activities' not in st.session_state:
-        st.session_state.show_upcoming_activities = True
+        st.session_state.show_upcoming_activities = False
     if 'show_accomplishments' not in st.session_state:
-        st.session_state.show_accomplishments = True
+        st.session_state.show_accomplishments = False
     if 'show_action_items' not in st.session_state:
-        st.session_state.show_action_items = True
+        st.session_state.show_action_items = False
     
     # Activities
     if 'current_activities' not in st.session_state:
@@ -46,7 +46,7 @@ def init_session_state():
     if 'nextsteps' not in st.session_state:
         st.session_state.nextsteps = [""]
     
-    # Optional sections visibility
+    # Optional sections visibility - all disabled by default
     for section in OPTIONAL_SECTIONS:
         if section['key'] not in st.session_state:
             st.session_state[section['key']] = False

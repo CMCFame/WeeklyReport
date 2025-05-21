@@ -282,40 +282,36 @@ def render_weekly_report_page():
         st.title('📋 Weekly Activity Report')
         st.write('Use the sections below to document your week\'s work')
 
+    # User Information Section (always visible)
+    render_user_info()
+    
+    # Section Selector - now as a toolbar at the top, not in an expander
+    render_section_selector()
+    
     # Progress bar
     completion_percentage = calculate_completion_percentage()
     st.progress(completion_percentage / 100)
-    
-    # Pre-fill name from user profile if empty
-    if not st.session_state.get("name") and st.session_state.get("user_info"):
-        st.session_state.name = st.session_state.user_info.get("full_name", "")
 
-    # Initialize session state for section toggles if they don't exist
+    # Initialize section toggles if they don't exist - only current activities enabled by default
     for section in [
         'show_current_activities', 'show_upcoming_activities', 
         'show_accomplishments', 'show_action_items'
     ]:
+        default_value = (section == 'show_current_activities')
         if section not in st.session_state:
-            st.session_state[section] = True  # Core sections are on by default
-
-    # User Information Section (always visible)
-    render_user_info()
-    
-    # Section Selector
-    with st.expander("🔧 Customize Report Sections", expanded=False):
-        render_section_selector()
+            st.session_state[section] = default_value
     
     # Render each section based on toggle state
     if st.session_state.get('show_current_activities', True):
         render_enhanced_current_activities()
     
-    if st.session_state.get('show_upcoming_activities', True):
+    if st.session_state.get('show_upcoming_activities', False):
         render_upcoming_activities()
     
-    if st.session_state.get('show_accomplishments', True):
+    if st.session_state.get('show_accomplishments', False):
         render_simple_accomplishments()
     
-    if st.session_state.get('show_action_items', True):
+    if st.session_state.get('show_action_items', False):
         render_simple_action_items()
 
     # Optional Sections Content

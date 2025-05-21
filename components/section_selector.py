@@ -9,8 +9,8 @@ def render_section_selector():
     st.header('Report Sections')
     st.write('Select which sections to include in your report:')
     
-    # Define the core sections that are available to toggle
-    CORE_SECTIONS = [
+    # Define all sections in a single list
+    ALL_SECTIONS = [
         {
             'key': 'show_current_activities',
             'label': 'Current Activities',
@@ -37,57 +37,34 @@ def render_section_selector():
         }
     ]
     
+    # Add optional sections to the main list
+    for section in OPTIONAL_SECTIONS:
+        ALL_SECTIONS.append({
+            'key': section['key'],
+            'label': section['label'],
+            'icon': section['icon'],
+            'description': section['description']
+        })
+    
     # Initialize session state for section toggles if they don't exist
-    for section in CORE_SECTIONS:
+    # Only enable Current Activities by default
+    for section in ALL_SECTIONS:
         if section['key'] not in st.session_state:
-            st.session_state[section['key']] = True  # Core sections are on by default
+            # Set default: only Current Activities is enabled
+            st.session_state[section['key']] = (section['key'] == 'show_current_activities')
     
-    # Core sections
-    st.subheader('Core Sections')
+    # Create 3 columns to display all toggles in a single row
+    cols = st.columns(3)
     
-    # Create two columns for better layout
-    col1, col2 = st.columns(2)
+    # Distribute sections across the columns
+    num_sections = len(ALL_SECTIONS)
+    sections_per_col = (num_sections + 2) // 3  # Divide evenly, rounding up
     
-    # Split sections between columns
-    half = len(CORE_SECTIONS) // 2 + len(CORE_SECTIONS) % 2
-    
-    with col1:
-        for section in CORE_SECTIONS[:half]:
+    for i, section in enumerate(ALL_SECTIONS):
+        col_idx = i // sections_per_col
+        with cols[col_idx]:
             st.session_state[section['key']] = st.toggle(
                 f"{section['icon']} {section['label']}", 
-                value=st.session_state.get(section['key'], True),
-                help=section['description']
-            )
-    
-    with col2:
-        for section in CORE_SECTIONS[half:]:
-            st.session_state[section['key']] = st.toggle(
-                f"{section['icon']} {section['label']}", 
-                value=st.session_state.get(section['key'], True),
-                help=section['description']
-            )
-    
-    # Optional sections
-    st.subheader('Additional Sections')
-    
-    # Create two columns to display toggles
-    col1, col2 = st.columns(2)
-    
-    # Split sections between columns
-    half = len(OPTIONAL_SECTIONS) // 2 + len(OPTIONAL_SECTIONS) % 2
-    
-    with col1:
-        for section in OPTIONAL_SECTIONS[:half]:
-            st.session_state[section['key']] = st.toggle(
-                f"{section['icon']} {section['label']}", 
-                value=st.session_state.get(section['key'], False),
-                help=section['description']
-            )
-    
-    with col2:
-        for section in OPTIONAL_SECTIONS[half:]:
-            st.session_state[section['key']] = st.toggle(
-                f"{section['icon']} {section['label']}", 
-                value=st.session_state.get(section['key'], False),
+                value=st.session_state.get(section['key'], section['key'] == 'show_current_activities'),
                 help=section['description']
             )
