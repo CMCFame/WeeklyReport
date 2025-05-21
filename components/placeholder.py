@@ -2,6 +2,7 @@
 """Placeholder components for pages not yet implemented."""
 
 import streamlit as st
+from utils.permissions import render_section_permissions_settings
 
 def render_placeholder(title, description, coming_soon=True):
     """Render a placeholder for features not yet implemented.
@@ -114,12 +115,36 @@ def render_one_on_one_meetings():
     )
 
 def render_system_settings():
-    """Render the system settings page placeholder."""
-    render_placeholder(
-        "System Settings",
-        "Configure system-wide settings and preferences.",
-        coming_soon=False
-    )
+    """Render the system settings page with section permissions."""
+    st.title("System Settings")
+    st.write("Configure system-wide settings and preferences.")
+    
+    # Create tabs for different settings categories
+    tab1, tab2, tab3 = st.tabs(["Display Settings", "Email Notifications", "Section Permissions"])
+    
+    with tab1:
+        st.subheader("Display Settings")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.checkbox("Use simplified UI for reports", value=True)
+            st.checkbox("Enable dark mode", value=False)
+        
+        with col2:
+            st.selectbox("Default report view", ["Compact", "Standard", "Detailed"])
+            st.selectbox("Default date format", ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"])
+    
+    with tab2:
+        st.subheader("Email Notifications")
+        st.checkbox("Weekly report reminders", value=True)
+        st.checkbox("Report submission notifications", value=True)
+        st.checkbox("Team activity updates", value=False)
+    
+    with tab3:
+        # Render section permissions settings here
+        render_section_permissions_settings()
+    
+    st.button("Save Settings", type="primary")
     
     # Add some actual settings
     st.subheader("Display Settings")
