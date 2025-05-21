@@ -285,21 +285,12 @@ def render_weekly_report_page():
     # User Information Section (always visible)
     render_user_info()
     
-    # Section Selector - now as a toolbar at the top, not in an expander
+    # Section Selector - compact multiselect at the top
     render_section_selector()
     
     # Progress bar
     completion_percentage = calculate_completion_percentage()
     st.progress(completion_percentage / 100)
-
-    # Initialize section toggles if they don't exist - only current activities enabled by default
-    for section in [
-        'show_current_activities', 'show_upcoming_activities', 
-        'show_accomplishments', 'show_action_items'
-    ]:
-        default_value = (section == 'show_current_activities')
-        if section not in st.session_state:
-            st.session_state[section] = default_value
     
     # Render each section based on toggle state
     if st.session_state.get('show_current_activities', True):

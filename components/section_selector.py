@@ -53,18 +53,27 @@ def render_section_selector():
             # Set default: only Current Activities is enabled
             st.session_state[section['key']] = (section['key'] == 'show_current_activities')
     
-    # Create 3 columns to display all toggles in a single row
-    cols = st.columns(3)
+    # Create a list of section labels with icons for the multiselect
+    section_labels = [f"{section['icon']} {section['label']}" for section in ALL_SECTIONS]
     
-    # Distribute sections across the columns
-    num_sections = len(ALL_SECTIONS)
-    sections_per_col = (num_sections + 2) // 3  # Divide evenly, rounding up
+    # Create a mapping from label to key for easier lookup
+    label_to_key = {f"{section['icon']} {section['label']}": section['key'] for section in ALL_SECTIONS}
     
-    for i, section in enumerate(ALL_SECTIONS):
-        col_idx = i // sections_per_col
-        with cols[col_idx]:
-            st.session_state[section['key']] = st.toggle(
-                f"{section['icon']} {section['label']}", 
-                value=st.session_state.get(section['key'], section['key'] == 'show_current_activities'),
-                help=section['description']
-            )
+    # Get currently selected sections
+    current_selections = [f"{section['icon']} {section['label']}" for section in ALL_SECTIONS 
+                         if st.session_state.get(section['key'], section['key'] == 'show_current_activities')]
+    
+    # Create a multiselect widget
+    st.write("Sections to include")
+    selected_sections = st.multiselect(
+        label="",
+        options=section_labels,
+        default=current_selections,
+        label_visibility="collapsed"
+    )
+    
+    # Update session state based on selections
+    for section in ALL_SECTIONS:
+        section_label = f"{section['icon']} {section['label']}"
+        is_selected = section_label in selected_sections
+        st.session_state[section['key']] = is_selected
