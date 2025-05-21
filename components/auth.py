@@ -409,25 +409,38 @@ def render_admin_user_management():
                             st.rerun()
                     with cols[2]:
                         delete_key = f"delete_user_{i}"
-                        delete_pressed = st.button("Delete", key=delete_key)
+                        if st.button("Delete", key=delete_key):
+                            # Store the username to delete in session state
+                            st.session_state.delete_confirmation_user = username
+                            st.rerun()
+                    
+                    # Check if this user is pending deletion (confirmation dialog)
+                    if st.session_state.get("delete_confirmation_user") == username:
+                        st.warning(f"Are you sure you want to delete user '{username}'?")
+                        confirm_col1, confirm_col2 = st.columns(2)
                         
-                        if delete_pressed:
-                            # Confirm delete with a modal-like interface
-                            st.warning(f"Are you sure you want to delete user '{username}'?")
-                            confirm_col1, confirm_col2 = st.columns(2)
-                            
-                            with confirm_col1:
-                                if st.button("Yes, Delete", key=f"confirm_delete_{i}"):
-                                    # Fix: Call delete_user properly with the username
-                                    if user_auth.delete_user(username):
-                                        st.success(f"User {username} deleted successfully.")
-                                        st.rerun()
-                                    else:
-                                        st.error(f"Failed to delete user {username}.")
-                            
-                            with confirm_col2:
-                                if st.button("Cancel", key=f"cancel_delete_{i}"):
+                        with confirm_col1:
+                            # Generate a unique key for this specific confirmation
+                            confirm_key = f"confirm_delete_{username}_{i}"
+                            if st.button("Yes, Delete", key=confirm_key):
+                                # Call delete_user correctly with the username
+                                if user_auth.delete_user(username):
+                                    # Clear the confirmation state
+                                    if "delete_confirmation_user" in st.session_state:
+                                        del st.session_state.delete_confirmation_user
+                                    st.success(f"User {username} deleted successfully.")
                                     st.rerun()
+                                else:
+                                    st.error(f"Failed to delete user {username}.")
+                        
+                        with confirm_col2:
+                            # Generate a unique key for this specific cancellation
+                            cancel_key = f"cancel_delete_{username}_{i}"
+                            if st.button("Cancel", key=cancel_key):
+                                # Clear the confirmation state
+                                if "delete_confirmation_user" in st.session_state:
+                                    del st.session_state.delete_confirmation_user
+                                st.rerun()
                     
                     st.divider()
                 else:

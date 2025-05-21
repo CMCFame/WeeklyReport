@@ -4,9 +4,10 @@
 
 import streamlit as st
 import uuid  # Add this import
+from utils.permissions import check_section_access
 
 def render_navigation():
-    """Render the main navigation sidebar."""
+    """Render the main navigation sidebar with permission checks."""
     user_role = st.session_state.get("user_info", {}).get("role", "team_member")
     
     # Store the current section and page in session state
@@ -39,15 +40,19 @@ def render_navigation():
         }
     }
     
-    # Add role-specific pages
+    # Add role-specific pages based on permissions
     if user_role == "admin":
         sections["team"]["pages"].insert(0, "User Management")
         sections["admin"]["pages"].extend(["Import Users", "Import Reports", "System Settings"])
         sections["goals"]["pages"].append("Import Objectives")
     elif user_role == "manager":
-        sections["team"]["pages"].insert(0, "User Management")
-        sections["admin"]["pages"].append("Import Reports")
-        sections["goals"]["pages"].append("Import Objectives")
+        # Check permissions for each page
+        if check_section_access("User Management", user_role):
+            sections["team"]["pages"].insert(0, "User Management")
+        if check_section_access("Import Reports", user_role):
+            sections["admin"]["pages"].append("Import Reports")
+        if check_section_access("Import Objectives", user_role):
+            sections["goals"]["pages"].append("Import Objectives")
     
     # Generate unique IDs for each section if they don't exist yet
     if "nav_section_ids" not in st.session_state:
@@ -64,10 +69,12 @@ def render_navigation():
                 # Generate a new unique ID and store it
                 st.session_state.nav_section_ids[section_key][page] = str(uuid.uuid4())[:8]
     
-    # Render each section
+    # Render each section with permission checks
     for section_key, section in sections.items():
-        # Don't show Team Management to regular users
-        if section_key == "team" and user_role == "team_member":
+        # Skip sections based on permissions
+        if section_key == "goals" and not check_section_access("Team Objectives", user_role):
+            continue
+        if section_key == "team" and not check_section_access("Team Structure", user_role):
             continue
             
         # Create expandable section
@@ -76,7 +83,7 @@ def render_navigation():
             # Render pages in this section
             for page_idx, page in enumerate(section["pages"]):
                 # Skip pages that require higher permissions
-                if page in ["User Management", "Import Users", "Import Reports", "System Settings", "Import Objectives"] and user_role == "team_member":
+                if not check_section_access(page, user_role):
                     continue
                     
                 # Select page button - use a unique key combining section, page and index

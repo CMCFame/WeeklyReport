@@ -1,3 +1,4 @@
+# utils/permissions.py
 """Section permissions management for the Weekly Report app."""
 
 import streamlit as st

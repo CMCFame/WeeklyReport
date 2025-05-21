@@ -145,22 +145,3 @@ def render_system_settings():
         render_section_permissions_settings()
     
     st.button("Save Settings", type="primary")
-    
-    # Add some actual settings
-    st.subheader("Display Settings")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.checkbox("Use simplified UI for reports", value=True)
-        st.checkbox("Enable dark mode", value=False)
-    
-    with col2:
-        st.selectbox("Default report view", ["Compact", "Standard", "Detailed"])
-        st.selectbox("Default date format", ["MM/DD/YYYY", "DD/MM/YYYY", "YYYY-MM-DD"])
-    
-    st.subheader("Email Notifications")
-    st.checkbox("Weekly report reminders", value=True)
-    st.checkbox("Report submission notifications", value=True)
-    st.checkbox("Team activity updates", value=False)
-    
-    st.button("Save Settings", type="primary")
