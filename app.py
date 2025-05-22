@@ -60,8 +60,6 @@ from components.batch_export import render_batch_export
 from components.team_objectives import render_team_objectives
 from components.goal_dashboard import render_goal_dashboard
 from components.okr_management import render_okr_management
-# ADD THIS LINE:
-from components.scoping_process import render_scoping_process
 
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
@@ -185,10 +183,6 @@ def render_selected_page(page_name):
         render_advanced_analytics()
     elif page_name == "Batch Export":
         render_batch_export()
-
-    # Scoping & Sales section
-    elif page_name == "Scoping Process":
-        render_scoping_process()
     
     # Goals & Tracking section
     elif page_name == "Team Objectives":

@@ -23,11 +23,6 @@ def render_navigation():
             "title": "REPORTING",
             "pages": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"] 
         },
-        "scoping": {
-            "icon": "🎯",
-            "title": "SCOPING & SALES",
-            "pages": ["Scoping Process"]
-        },
         "goals": {
             "icon": "🎯",
             "title": "GOALS & TRACKING",
@@ -113,7 +108,6 @@ def set_page(page_name):
     # Determine the section for this page
     for section_key, section in {
         "reporting": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"],
-        "scoping": ["Scoping Process"],
         "goals": ["Team Objectives", "Goal Dashboard", "OKR Management", "Import Objectives"],
         "team": ["User Management", "Team Structure", "1:1 Meetings"],
         "admin": ["User Profile", "Project Data", "Import Users", "Import Reports", "System Settings"]
