@@ -183,7 +183,7 @@ def render_selected_page(page_name):
         render_advanced_analytics()
     elif page_name == "Batch Export":
         render_batch_export()
-    
+
     # Scoping & Sales section
     elif page_name == "Scoping Process":
         from components.scoping_process import render_scoping_process
