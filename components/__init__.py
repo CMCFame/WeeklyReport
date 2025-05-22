@@ -34,6 +34,7 @@ from components.user_import import render_user_import
 from components.report_import import render_report_import
 from components.objectives_import import render_objectives_import
 from components.section_selector import render_section_selector
+from components.scoping_process import render_scoping_process
 
 # Import real implementations of previously placeholder components
 from components.report_templates import render_report_templates as render_real_report_templates

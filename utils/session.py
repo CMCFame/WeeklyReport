@@ -37,6 +37,8 @@ def init_session_state():
         st.session_state.current_activities = []
     if 'upcoming_activities' not in st.session_state:
         st.session_state.upcoming_activities = []
+    if 'scoping_activities' not in st.session_state:
+        st.session_state.scoping_activities = []
     
     # Lists
     if 'accomplishments' not in st.session_state:

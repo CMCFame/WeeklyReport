@@ -17,17 +17,22 @@ def render_navigation():
         st.session_state.nav_page = "Weekly Report"
     
     # Define sections and their pages based on user role
-    sections = {
-        "reporting": {
-            "icon": "📋",
-            "title": "REPORTING",
-            "pages": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"] 
-        },
-        "goals": {
-            "icon": "🎯",
-            "title": "GOALS & TRACKING",
-            "pages": ["Team Objectives", "Goal Dashboard", "OKR Management"]
-        },
+sections = {
+    "reporting": {
+        "icon": "📋",
+        "title": "REPORTING", 
+        "pages": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"]
+    },
+    "scoping": {  # NEW SECTION
+        "icon": "🎯", 
+        "title": "SCOPING & SALES",
+        "pages": ["Scoping Process"]
+    },
+    "goals": {
+        "icon": "🎯",
+        "title": "GOALS & TRACKING",
+        "pages": ["Team Objectives", "Goal Dashboard", "OKR Management"]
+    },
         "team": {
             "icon": "👥",
             "title": "TEAM MANAGEMENT",

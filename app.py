@@ -184,6 +184,11 @@ def render_selected_page(page_name):
     elif page_name == "Batch Export":
         render_batch_export()
     
+        # ADD THIS NEW SECTION HERE - Scoping & Sales section
+    elif page_name == "Scoping Process":
+        from components.scoping_process import render_scoping_process
+        render_scoping_process()
+    
     # Goals & Tracking section
     elif page_name == "Team Objectives":
         render_team_objectives()
