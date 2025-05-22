@@ -17,22 +17,22 @@ def render_navigation():
         st.session_state.nav_page = "Weekly Report"
     
     # Define sections and their pages based on user role
-sections = {
-    "reporting": {
-        "icon": "📋",
-        "title": "REPORTING", 
-        "pages": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"]
-    },
-    "scoping": {  # NEW SECTION
-        "icon": "🎯", 
-        "title": "SCOPING & SALES",
-        "pages": ["Scoping Process"]
-    },
-    "goals": {
-        "icon": "🎯",
-        "title": "GOALS & TRACKING",
-        "pages": ["Team Objectives", "Goal Dashboard", "OKR Management"]
-    },
+    sections = {
+        "reporting": {
+            "icon": "📋",
+            "title": "REPORTING",
+            "pages": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"] 
+        },
+        "scoping": {
+            "icon": "🎯",
+            "title": "SCOPING & SALES",
+            "pages": ["Scoping Process"]
+        },
+        "goals": {
+            "icon": "🎯",
+            "title": "GOALS & TRACKING",
+            "pages": ["Team Objectives", "Goal Dashboard", "OKR Management"]
+        },
         "team": {
             "icon": "👥",
             "title": "TEAM MANAGEMENT",
@@ -113,6 +113,7 @@ def set_page(page_name):
     # Determine the section for this page
     for section_key, section in {
         "reporting": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"],
+        "scoping": ["Scoping Process"],
         "goals": ["Team Objectives", "Goal Dashboard", "OKR Management", "Import Objectives"],
         "team": ["User Management", "Team Structure", "1:1 Meetings"],
         "admin": ["User Profile", "Project Data", "Import Users", "Import Reports", "System Settings"]
