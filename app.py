@@ -1,10 +1,11 @@
-# app.py
+# app.py - Updated with ASDF Analytics integration
 
 """
-Weekly Activity Report Application
+Weekly Activity Report Application with ASDF Analytics
 
 A Streamlit application for tracking and reporting weekly work activities,
-designed to standardize interaction recording between managers and team members.
+designed to standardize interaction recording between managers and team members
+with tactical ASDF project lifecycle insights.
 """
 
 import streamlit as st
@@ -56,6 +57,7 @@ from components.weekly_report_analytics import render_weekly_report_analytics
 from components.team_structure import render_team_structure
 from components.one_on_one_meetings import render_one_on_one_meetings
 from components.advanced_analytics import render_advanced_analytics
+from components.asdf_analytics_dashboard import render_asdf_analytics_dashboard  # NEW IMPORT
 from components.batch_export import render_batch_export
 from components.team_objectives import render_team_objectives
 from components.goal_dashboard import render_goal_dashboard
@@ -69,7 +71,7 @@ def clear_form_callback():
 
 # Set page configuration
 st.set_page_config(
-    page_title="Weekly Activity Report",
+    page_title="Weekly Activity Report with ASDF Analytics",
     page_icon="📋",
     layout="wide"
 )
@@ -181,6 +183,8 @@ def render_selected_page(page_name):
         render_weekly_report_analytics()
     elif page_name == "Advanced Analytics":
         render_advanced_analytics()
+    elif page_name == "ASDF Analytics":  # NEW PAGE HANDLER
+        render_asdf_analytics_dashboard()
     elif page_name == "Batch Export":
         render_batch_export()
     
@@ -279,7 +283,7 @@ def render_weekly_report_page():
         st.title('📝 Edit Weekly Activity Report')
         st.write('Update your previous report')
     else:
-        st.title('📋 Weekly Activity Report')
+        st.title('📋 Weekly Activity Report with ASDF Analytics')
         st.write('Use the sections below to document your week\'s work')
 
     # User Information Section (always visible)

@@ -1,9 +1,9 @@
-# components/navigation.py
+# components/navigation.py - Updated with ASDF Analytics
 
 """Navigation component for the Weekly Report app."""
 
 import streamlit as st
-import uuid  # Add this import
+import uuid
 from utils.permissions import check_section_access
 
 def render_navigation():
@@ -21,7 +21,7 @@ def render_navigation():
         "reporting": {
             "icon": "📋",
             "title": "REPORTING",
-            "pages": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"] 
+            "pages": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "ASDF Analytics", "Batch Export"] 
         },
         "goals": {
             "icon": "🎯",
@@ -85,6 +85,10 @@ def render_navigation():
                 # Skip pages that require higher permissions
                 if not check_section_access(page, user_role):
                     continue
+                
+                # Special handling for ASDF Analytics - only show to managers and admins
+                if page == "ASDF Analytics" and user_role not in ["admin", "manager"]:
+                    continue
                     
                 # Select page button - use a unique key combining section, page and index
                 is_active = st.session_state.nav_page == page
@@ -107,7 +111,7 @@ def set_page(page_name):
     """Set the current page programmatically."""
     # Determine the section for this page
     for section_key, section in {
-        "reporting": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"],
+        "reporting": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "ASDF Analytics", "Batch Export"],
         "goals": ["Team Objectives", "Goal Dashboard", "OKR Management", "Import Objectives"],
         "team": ["User Management", "Team Structure", "1:1 Meetings"],
         "admin": ["User Profile", "Project Data", "Import Users", "Import Reports", "System Settings"]
