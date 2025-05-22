@@ -1,20 +1,19 @@
 # components/enhanced_current_activities.py
-"""Enhanced current activities component for the Weekly Report app."""
+"""Enhanced current activities component with ASDF phase tracking for tactical management visibility."""
 
 import streamlit as st
 from datetime import datetime
 from utils import session
-from utils.constants import PRIORITY_OPTIONS, STATUS_OPTIONS, BILLABLE_OPTIONS
+from utils.constants import (
+    PRIORITY_OPTIONS, STATUS_OPTIONS, BILLABLE_OPTIONS, 
+    ASDF_PHASES, ASDF_PHASE_DESCRIPTIONS, ASDF_PHASE_COLORS
+)
 from utils.csv_utils import get_user_projects, get_project_milestones
 
 def render_enhanced_current_activities():
-    """Render the enhanced current activities section.
-    
-    This section allows users to add, edit, and remove current work activities
-    with details like project, milestone, priority, status, customer, etc.
-    """
+    """Render the enhanced current activities section with ASDF phase tracking."""
     st.header('📊 Current Activities')
-    st.write('What are you currently working on? Include priority and status.')
+    st.write('What are you currently working on? Include priority, status, and project phase.')
     
     # Handle empty state - add a default activity if none exist
     if not st.session_state.current_activities:
@@ -23,12 +22,30 @@ def render_enhanced_current_activities():
             st.rerun()
         return
     
+    # Show ASDF Phase Distribution (Tactical Management View)
+    if len(st.session_state.current_activities) > 1:
+        render_phase_distribution_preview()
+    
     # Render existing activities
     for i, activity in enumerate(st.session_state.current_activities):
         activity_title = activity.get('description', '')[:30] 
-        activity_title = f"{activity_title}..." if activity_title else "New Activity"
+        activity_phase = activity.get('asdf_phase', '')
+        phase_indicator = f"[{activity_phase}] " if activity_phase else ""
+        activity_title = f"{phase_indicator}{activity_title}..." if activity_title else "New Activity"
+        
+        # Color-code the expander based on ASDF phase
+        phase_color = ASDF_PHASE_COLORS.get(activity_phase, "#f8f9fa")
         
         with st.expander(f"Activity {i+1}: {activity_title}", expanded=i==0):
+            # Add subtle phase indicator
+            if activity_phase:
+                st.markdown(
+                    f'<div style="background-color: {phase_color}; padding: 4px 8px; border-radius: 4px; '
+                    f'margin-bottom: 10px; font-size: 12px; color: #333;">'
+                    f'📋 ASDF Phase: {activity_phase}</div>',
+                    unsafe_allow_html=True
+                )
+            
             render_enhanced_current_activity_form(i, activity)
     
     # Add activity button
@@ -36,15 +53,47 @@ def render_enhanced_current_activities():
         session.add_current_activity()
         st.rerun()
 
+def render_phase_distribution_preview():
+    """Show a quick visual preview of ASDF phase distribution for management insights."""
+    st.subheader("📈 Project Phase Overview")
+    
+    # Count activities by phase
+    phase_counts = {}
+    for activity in st.session_state.current_activities:
+        phase = activity.get('asdf_phase', 'Unspecified')
+        if not phase:
+            phase = 'Unspecified'
+        phase_counts[phase] = phase_counts.get(phase, 0) + 1
+    
+    # Create columns for phase indicators
+    cols = st.columns(len(ASDF_PHASES) if len(ASDF_PHASES) <= 6 else 6)
+    
+    for i, phase in enumerate(ASDF_PHASES):
+        if i < len(cols):
+            with cols[i]:
+                count = phase_counts.get(phase, 0)
+                phase_name = phase if phase else "Unspecified"
+                color = ASDF_PHASE_COLORS.get(phase, "#f8f9fa")
+                
+                # Create a mini metric card
+                st.markdown(
+                    f'<div style="background-color: {color}; padding: 8px; border-radius: 6px; '
+                    f'text-align: center; margin-bottom: 5px;">'
+                    f'<div style="font-size: 16px; font-weight: bold; color: #333;">{count}</div>'
+                    f'<div style="font-size: 10px; color: #666;">{phase_name}</div>'
+                    f'</div>',
+                    unsafe_allow_html=True
+                )
+
 def render_enhanced_current_activity_form(index, activity):
-    """Render form fields for a current activity with enhanced features."""
+    """Render form fields for a current activity with ASDF phase tracking."""
     # Get username for project filtering
     username = ""
     if st.session_state.get("user_info"):
         username = st.session_state.user_info.get("username", "")
     
-    # First row: Project and Milestone
-    col_proj, col_mile = st.columns(2)
+    # First row: Project, Milestone, and ASDF Phase
+    col_proj, col_mile, col_phase = st.columns(3)
     
     with col_proj:
         # Get available projects for the user
@@ -96,6 +145,28 @@ def render_enhanced_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'milestone', milestone)
     
+    with col_phase:
+        # ASDF Phase selection - The key tactical addition
+        current_phase = activity.get('asdf_phase', '')
+        
+        phase_index = 0
+        if current_phase in ASDF_PHASES:
+            phase_index = ASDF_PHASES.index(current_phase)
+        
+        asdf_phase = st.selectbox(
+            'ASDF Phase',
+            options=ASDF_PHASES,
+            index=phase_index,
+            key=f"curr_phase_{index}",
+            help="Select the ASDF project phase - helps management track project lifecycle",
+            format_func=lambda x: f"{x}" if x else "Not specified"
+        )
+        session.update_current_activity(index, 'asdf_phase', asdf_phase)
+        
+        # Show phase description if selected
+        if asdf_phase and asdf_phase in ASDF_PHASE_DESCRIPTIONS:
+            st.caption(f"💡 {ASDF_PHASE_DESCRIPTIONS[asdf_phase]}")
+    
     # Second row: Priority, Status, Customer, Billable
     col1, col2, col3, col4 = st.columns(4)
     
@@ -135,23 +206,10 @@ def render_enhanced_current_activity_form(index, activity):
         )
         session.update_current_activity(index, 'billable', billable)
     
-    # Third row: Deadline and Recurrent checkboxes
+    # Third row: Deadline and Progress
     col5, col6 = st.columns(2)
     
     with col5:
-        # Initialize recurring field if not present
-        if 'is_recurring' not in activity:
-            activity['is_recurring'] = False
-            
-        is_recurring = st.checkbox(
-            'Recurring Activity',
-            value=activity.get('is_recurring', False),
-            key=f"curr_recur_{index}",
-            help="Check if this is a recurring activity"
-        )
-        session.update_current_activity(index, 'is_recurring', is_recurring)
-    
-    with col6:
         # Initialize has_deadline field if not present
         if 'has_deadline' not in activity:
             activity['has_deadline'] = bool(activity.get('deadline', ''))
@@ -163,11 +221,7 @@ def render_enhanced_current_activity_form(index, activity):
             help="Check if this activity has a deadline"
         )
         session.update_current_activity(index, 'has_deadline', has_deadline)
-    
-    # Fourth row: Deadline (if applicable) and Progress
-    col7, col8 = st.columns(2)
-    
-    with col7:
+        
         if has_deadline:
             # Handle date conversion
             deadline_date = None
@@ -187,7 +241,7 @@ def render_enhanced_current_activity_form(index, activity):
             # Clear deadline if checkbox is unchecked
             session.update_current_activity(index, 'deadline', '')
     
-    with col8:
+    with col6:
         # Progress with both slider and number input
         st.write("Progress")
         progress_cols = st.columns([3, 1])
