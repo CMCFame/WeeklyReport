@@ -188,7 +188,6 @@ def render_selected_page(page_name):
 
     # Scoping & Sales section
     elif page_name == "Scoping Process":
-        from components.scoping_process import render_scoping_process
         render_scoping_process()
     
     # Goals & Tracking section
