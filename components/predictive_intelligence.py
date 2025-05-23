@@ -5,7 +5,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from utils.file_ops import get_all_reports
 from utils.ai_utils import (
     analyze_sentiment,
@@ -70,10 +70,18 @@ def render_predictive_intelligence():
     
     # Filter recent reports for better predictions
     recent_cutoff = datetime.now() - timedelta(weeks=12)
-    recent_reports = [
-        r for r in reports 
-        if 'timestamp' in r and datetime.fromisoformat(r['timestamp'][:10]) >= recent_cutoff.date()
-    ]
+    recent_reports = []
+    
+    for r in reports:
+        if 'timestamp' in r:
+            try:
+                # FIXED: Properly parse the date part of the timestamp
+                report_date = date.fromisoformat(r['timestamp'][:10])
+                if report_date >= recent_cutoff.date():
+                    recent_reports.append(r)
+            except (ValueError, TypeError):
+                # Skip reports with invalid timestamps
+                continue
     
     if len(recent_reports) < 5:
         st.warning("Limited data available. Predictions improve with more historical reports.")
@@ -201,11 +209,16 @@ def predict_project_risks(project_data, prediction_weeks, confidence_threshold):
         
         # Check for stagnant projects
         if data['last_activity']:
-            last_activity_date = datetime.fromisoformat(data['last_activity'][:10])
-            days_since_activity = (datetime.now().date() - last_activity_date.date()).days
-            if days_since_activity > 14:
-                risk_factors.append(f"No activity for {days_since_activity} days")
-                risk_score += 15
+            try:
+                # FIXED: Properly parse the date from timestamp
+                last_activity_date = date.fromisoformat(data['last_activity'][:10])
+                days_since_activity = (datetime.now().date() - last_activity_date).days
+                if days_since_activity > 14:
+                    risk_factors.append(f"No activity for {days_since_activity} days")
+                    risk_score += 15
+            except (ValueError, TypeError):
+                # Skip if timestamp is invalid
+                pass
         
         # Team size analysis
         team_size = len(data['team_members'])
@@ -311,11 +324,12 @@ def analyze_team_patterns(reports):
             gaps = []
             for i in range(1, len(report_dates)):
                 try:
-                    date1 = datetime.strptime(report_dates[i-1], '%Y-%m-%d')
-                    date2 = datetime.strptime(report_dates[i], '%Y-%m-%d')
+                    # FIXED: Use date.fromisoformat for date strings
+                    date1 = date.fromisoformat(report_dates[i-1])
+                    date2 = date.fromisoformat(report_dates[i])
                     gap = (date2 - date1).days
                     gaps.append(gap)
-                except:
+                except (ValueError, TypeError):
                     continue
             
             if gaps:
@@ -421,8 +435,11 @@ def detect_behavioral_patterns(reports):
     for report in reports:
         if 'timestamp' in report:
             try:
-                report_date = datetime.fromisoformat(report['timestamp'][:10])
-                day_name = report_date.strftime('%A')
+                # FIXED: Properly parse the date from timestamp
+                report_date = date.fromisoformat(report['timestamp'][:10])
+                # Convert to datetime to get day name
+                report_datetime = datetime.combine(report_date, datetime.min.time())
+                day_name = report_datetime.strftime('%A')
                 
                 # Calculate productivity score
                 accomplishments = len([a for a in report.get('accomplishments', []) if len(a.strip()) > 10])
@@ -430,7 +447,7 @@ def detect_behavioral_patterns(reports):
                 productivity = accomplishments * 2 + activities
                 
                 day_productivity[day_name].append(productivity)
-            except:
+            except (ValueError, TypeError):
                 continue
     
     # Calculate average productivity by day
