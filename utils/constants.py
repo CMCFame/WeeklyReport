@@ -6,37 +6,7 @@ PRIORITY_OPTIONS = ["High", "Medium", "Low"]
 STATUS_OPTIONS = ["Not Started", "In Progress", "Blocked", "Completed"]
 BILLABLE_OPTIONS = ["", "Yes", "No"]
 
-# ASDF Project Phases - New addition for tactical management visibility
-ASDF_PHASES = [
-    "",  # Empty option for non-project activities
-    "Qualification", 
-    "Scoping", 
-    "Initiation", 
-    "Delivery", 
-    "Support"
-]
-
-# Phase descriptions for help text
-ASDF_PHASE_DESCRIPTIONS = {
-    "": "Not project-related or general activity",
-    "Qualification": "Opportunity identification and BANT qualification",
-    "Scoping": "Whiteboard sessions, ROM development, SOW creation",
-    "Initiation": "Project onboarding, resourcing, team preparation",
-    "Delivery": "Active project execution and deliverable creation",
-    "Support": "Ongoing maintenance and customer support"
-}
-
-# Phase colors for visualizations
-ASDF_PHASE_COLORS = {
-    "": "#f8f9fa",  # Light gray for unspecified
-    "Qualification": "#28a745",  # Green - early opportunity
-    "Scoping": "#17a2b8",  # Blue - analysis phase
-    "Initiation": "#ffc107",  # Yellow - preparation
-    "Delivery": "#dc3545",  # Red - active execution
-    "Support": "#6c757d"  # Gray - ongoing support
-}
-
-# Current activities default - Enhanced with ASDF phase
+# Current activities default
 DEFAULT_CURRENT_ACTIVITY = {
     'project': '',
     'milestone': '',
@@ -45,21 +15,19 @@ DEFAULT_CURRENT_ACTIVITY = {
     'customer': '',
     'billable': '',
     'deadline': '',
-    'has_deadline': False,
-    'is_recurring': False,
+    'has_deadline': False,  # New field
+    'is_recurring': False,  # New field
     'progress': 50,
-    'description': '',
-    'asdf_phase': ''  # New field for ASDF phase tracking
+    'description': ''
 }
 
-# Upcoming activities default - Enhanced with ASDF phase
+# Upcoming activities default
 DEFAULT_UPCOMING_ACTIVITY = {
     'project': '',
     'milestone': '',
     'priority': 'Medium',
-    'expected_start': '',
-    'description': '',
-    'asdf_phase': ''  # New field for ASDF phase tracking
+    'expected_start': '',  # This will be set to next Monday dynamically
+    'description': ''
 }
 
 # Optional sections
