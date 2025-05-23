@@ -23,6 +23,16 @@ def render_navigation():
             "title": "REPORTING",
             "pages": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"] 
         },
+        "ai": {
+            "icon": "🤖",
+            "title": "AI ASSISTANT",
+            "pages": ["AI Voice Assistant", "Smart Suggestions"]
+        },
+        "intelligence": {
+            "icon": "🧠",
+            "title": "AI INTELLIGENCE",
+            "pages": ["Team Health Dashboard", "Predictive Intelligence", "Executive Summary"]
+        },
         "goals": {
             "icon": "🎯",
             "title": "GOALS & TRACKING",
@@ -54,6 +64,11 @@ def render_navigation():
         if check_section_access("Import Objectives", user_role):
             sections["goals"]["pages"].append("Import Objectives")
     
+    # AI Intelligence section is only for managers and admins
+    if user_role not in ["admin", "manager"]:
+        # Remove AI Intelligence section for team members
+        sections.pop("intelligence", None)
+    
     # Generate unique IDs for each section if they don't exist yet
     if "nav_section_ids" not in st.session_state:
         st.session_state.nav_section_ids = {}
@@ -75,6 +90,8 @@ def render_navigation():
         if section_key == "goals" and not check_section_access("Team Objectives", user_role):
             continue
         if section_key == "team" and not check_section_access("Team Structure", user_role):
+            continue
+        if section_key == "intelligence" and user_role not in ["admin", "manager"]:
             continue
             
         # Create expandable section
@@ -108,6 +125,8 @@ def set_page(page_name):
     # Determine the section for this page
     for section_key, section in {
         "reporting": ["Weekly Report", "Past Reports", "Report Templates", "Report Analytics", "Advanced Analytics", "Batch Export"],
+        "ai": ["AI Voice Assistant", "Smart Suggestions"],
+        "intelligence": ["Team Health Dashboard", "Predictive Intelligence", "Executive Summary"],
         "goals": ["Team Objectives", "Goal Dashboard", "OKR Management", "Import Objectives"],
         "team": ["User Management", "Team Structure", "1:1 Meetings"],
         "admin": ["User Profile", "Project Data", "Import Users", "Import Reports", "System Settings"]

@@ -17,6 +17,8 @@ def get_default_permissions():
         "team_management": True,  # Team Management section
         "advanced_analytics": True,  # Advanced Analytics
         "batch_export": True,     # Batch Export
+        "ai_assistant": True,     # AI Assistant features (all users)
+        "ai_intelligence": True,  # AI Intelligence features (managers/admins)
         "admin_features": {       # Admin-only features by role
             "admin": True,        # Admin sees all admin features
             "manager": True,      # Managers see manager-level admin features
@@ -84,6 +86,17 @@ def check_section_access(section_name, user_role="team_member"):
     if section_name == "Batch Export":
         return permissions.get("batch_export", True)
     
+    # NEW AI PERMISSIONS
+    # AI Assistant features (available to all users)
+    if section_name in ["AI Voice Assistant", "Smart Suggestions"]:
+        return permissions.get("ai_assistant", True)
+    
+    # AI Intelligence features (managers and admins only)
+    if section_name in ["Team Health Dashboard", "Predictive Intelligence", "Executive Summary"]:
+        if user_role in ["admin", "manager"]:
+            return permissions.get("ai_intelligence", True)
+        return False
+    
     # By default, allow access
     return True
 
@@ -118,6 +131,21 @@ def render_section_permissions_settings():
         batch_export = st.checkbox(
             "Batch Export",
             value=permissions.get("batch_export", True)
+        )
+        
+        # NEW AI PERMISSIONS
+        st.write("### AI Features")
+        
+        ai_assistant = st.checkbox(
+            "AI Assistant (Voice Assistant, Smart Suggestions) - All Users",
+            value=permissions.get("ai_assistant", True),
+            help="AI features available to all team members"
+        )
+        
+        ai_intelligence = st.checkbox(
+            "AI Intelligence (Team Health, Predictive Intelligence, Executive Summary) - Managers/Admins Only",
+            value=permissions.get("ai_intelligence", True),
+            help="Advanced AI analytics for managers and administrators"
         )
         
         # Admin features by role
@@ -156,6 +184,8 @@ def render_section_permissions_settings():
                 "team_management": team_management,
                 "advanced_analytics": advanced_analytics,
                 "batch_export": batch_export,
+                "ai_assistant": ai_assistant,
+                "ai_intelligence": ai_intelligence,
                 "admin_features": {
                     "admin": True,  # Always true
                     "manager": manager_admin,

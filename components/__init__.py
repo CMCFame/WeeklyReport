@@ -66,3 +66,23 @@ from components.pdf_export import (
     render_batch_export_reports,
     render_batch_export_objectives
 )
+
+# NEW AI COMPONENTS - Import all AI features
+from components.ai_voice_assistant import (
+    render_ai_voice_assistant,
+    render_voice_assistant_tips,
+    render_voice_analytics
+)
+
+from components.ai_smart_suggestions import (
+    render_smart_suggestions_panel,
+    render_suggestions_dashboard,
+    render_real_time_suggestions,
+    render_smart_autocomplete
+)
+
+from components.team_health_dashboard import render_team_health_dashboard
+
+from components.predictive_intelligence import render_predictive_intelligence
+
+from components.executive_summary_generator import render_executive_summary_generator

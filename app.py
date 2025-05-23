@@ -61,6 +61,16 @@ from components.team_objectives import render_team_objectives
 from components.goal_dashboard import render_goal_dashboard
 from components.okr_management import render_okr_management
 
+# NEW AI IMPORTS - Import all AI features
+from components.ai_voice_assistant import render_ai_voice_assistant
+from components.ai_smart_suggestions import (
+    render_suggestions_dashboard, 
+    render_smart_suggestions_panel
+)
+from components.team_health_dashboard import render_team_health_dashboard
+from components.predictive_intelligence import render_predictive_intelligence
+from components.executive_summary_generator import render_executive_summary_generator
+
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
     """Callback to reset all fields and rerun the app."""
@@ -184,6 +194,20 @@ def render_selected_page(page_name):
     elif page_name == "Batch Export":
         render_batch_export()
     
+    # AI Assistant section (NEW)
+    elif page_name == "AI Voice Assistant":
+        render_ai_voice_assistant()
+    elif page_name == "Smart Suggestions":
+        render_suggestions_dashboard()
+    
+    # AI Intelligence section (NEW - Managers/Admins only)
+    elif page_name == "Team Health Dashboard":
+        render_team_health_dashboard()
+    elif page_name == "Predictive Intelligence":
+        render_predictive_intelligence()
+    elif page_name == "Executive Summary":
+        render_executive_summary_generator()
+    
     # Goals & Tracking section
     elif page_name == "Team Objectives":
         render_team_objectives()
@@ -284,6 +308,9 @@ def render_weekly_report_page():
 
     # User Information Section (always visible)
     render_user_info()
+    
+    # AI Smart Suggestions Panel (NEW) - Only show if user is actively working
+    render_smart_suggestions_panel()
     
     # Section Selector - compact multiselect at the top
     render_section_selector()
