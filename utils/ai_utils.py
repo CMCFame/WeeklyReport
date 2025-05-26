@@ -348,7 +348,7 @@ def generate_executive_summary(reports: List[Dict], summary_type: str = "Executi
         response = openai.chat.completions.create(
             model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=500
+            max_completion_tokens=500
         )
         
         return response.choices[0].message.content
@@ -424,7 +424,7 @@ def structure_voice_input(transcription: str) -> Dict:
         response = openai.chat.completions.create(
             model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=800
+            max_completion_tokens=800
         )
         
         # Parse JSON response
