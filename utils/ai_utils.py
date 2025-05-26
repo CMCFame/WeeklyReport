@@ -264,7 +264,7 @@ async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
         response = openai.chat.completions.create(
             model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200
+            max_completion_tokens=300
         )
         
         suggestions_text = response.choices[0].message.content
