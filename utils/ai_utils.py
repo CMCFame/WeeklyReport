@@ -16,56 +16,31 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def setup_openai_api():
-    """Setup OpenAI API key with user input if not configured."""
-    # Check if API key is already set
-    if hasattr(st.session_state, 'openai_api_key') and st.session_state.openai_api_key:
-        openai.api_key = st.session_state.openai_api_key
+    """Setup OpenAI API key by fetching it from Streamlit secrets."""
+    # Try to get the API key from Streamlit secrets
+    api_key = st.secrets.get("OPENAI_API_KEY")
+
+    if api_key:
+        openai.api_key = api_key
+        # You might want to add a lightweight test call here if desired,
+        # but generally, if the key is in secrets, it's assumed to be valid.
+        # For simplicity, we'll assume it's valid if present.
+        # You can log that the key was successfully loaded if needed.
+        # logger.info("OpenAI API key loaded successfully from secrets.")
         return True
-    
-    # Check if we need to prompt for API key
-    st.warning("🔑 OpenAI API key required for AI features")
-    
-    with st.expander("Setup OpenAI API Key", expanded=True):
-        st.write("To use AI features, you need an OpenAI API key:")
-        st.write("1. Visit [OpenAI Platform](https://platform.openai.com)")
-        st.write("2. Create a new API key")
-        st.write("3. Enter it below")
-        
-        api_key = st.text_input(
-            "OpenAI API Key", 
-            type="password",
-            help="Your API key will be stored securely for this session"
+    else:
+        # Inform the user if the API key is not found in secrets
+        st.warning("🔑 OpenAI API key not found in Streamlit secrets.")
+        st.info(
+            "To enable AI features, please add your OpenAI API key to your Streamlit secrets. "
+            "You can do this by creating a `secrets.toml` file in a `.streamlit` directory "
+            "in your app's root folder with the following content:\n\n"
+            "```toml\n"
+            "OPENAI_API_KEY = \"your_api_key_here\"\n"
+            "```\n\n"
+            "Alternatively, if deploying on Streamlit Community Cloud, add it via the app's settings."
         )
-        
-        storage_option = st.radio(
-            "Storage Option",
-            ["Temporary (this session only)", "Session Storage (until browser restart)"],
-            help="Choose how long to remember your API key"
-        )
-        
-        if st.button("Save API Key"):
-            if api_key.startswith('sk-'):
-                st.session_state.openai_api_key = api_key
-                openai.api_key = api_key
-                
-                # Test the API key
-                try:
-                    # Simple test call
-                    response = openai.chat.completions.create(
-                        model="gpt-3.5-turbo",
-                        messages=[{"role": "user", "content": "Test"}],
-                        max_tokens=1
-                    )
-                    st.success("✅ API key validated successfully!")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ API key validation failed: {str(e)}")
-                    return False
-            else:
-                st.error("❌ Invalid API key format. Should start with 'sk-'")
-                return False
-    
-    return False
+        return False
 
 def analyze_sentiment(text: str) -> Dict:
     """Analyze sentiment of text using TextBlob."""
@@ -271,8 +246,8 @@ def predict_burnout_risk(user_reports: List[Dict]) -> Dict:
 
 async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
     """Generate AI suggestions for report content."""
-    if not setup_openai_api():
-        return ["AI suggestions unavailable - please configure OpenAI API key"]
+    if not setup_openai_api(): # This will now use st.secrets
+        return ["AI suggestions unavailable - please configure OpenAI API key in Streamlit secrets."]
     
     try:
         prompt = f"""
@@ -289,7 +264,7 @@ async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
         Provide exactly 3 suggestions, each on a new line starting with "•"
         """
         
-        response = openai.chat.completions.create(
+        response = await openai.chat.completions.create( # Assuming async version of openai library
             model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
             max_tokens=200,
@@ -307,8 +282,8 @@ async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
 
 def generate_executive_summary(reports: List[Dict], summary_type: str = "Executive") -> str:
     """Generate executive summary from reports."""
-    if not setup_openai_api():
-        return "Executive summary unavailable - please configure OpenAI API key"
+    if not setup_openai_api(): # This will now use st.secrets
+        return "Executive summary unavailable - please configure OpenAI API key in Streamlit secrets."
     
     try:
         # Prepare report data
@@ -389,8 +364,8 @@ def generate_executive_summary(reports: List[Dict], summary_type: str = "Executi
 
 def transcribe_audio(audio_bytes: bytes) -> str:
     """Transcribe audio using OpenAI Whisper."""
-    if not setup_openai_api():
-        return "Transcription unavailable - please configure OpenAI API key"
+    if not setup_openai_api(): # This will now use st.secrets
+        return "Transcription unavailable - please configure OpenAI API key in Streamlit secrets."
     
     try:
         # Save audio to temporary file
@@ -411,7 +386,7 @@ def transcribe_audio(audio_bytes: bytes) -> str:
         import os
         os.unlink(temp_audio_path)
         
-        return response
+        return response # This is a string, not response.text
         
     except Exception as e:
         logger.error(f"Audio transcription error: {e}")
@@ -419,8 +394,8 @@ def transcribe_audio(audio_bytes: bytes) -> str:
 
 def structure_voice_input(transcription: str) -> Dict:
     """Structure voice input into report sections using AI."""
-    if not setup_openai_api():
-        return {"error": "AI structuring unavailable - please configure OpenAI API key"}
+    if not setup_openai_api(): # This will now use st.secrets
+        return {"error": "AI structuring unavailable - please configure OpenAI API key in Streamlit secrets."}
     
     try:
         prompt = f"""
@@ -460,9 +435,21 @@ def structure_voice_input(transcription: str) -> Dict:
         
         # Parse JSON response
         import json
-        structured_data = json.loads(response.choices[0].message.content)
-        return structured_data
-        
+        structured_data_str = response.choices[0].message.content
+        # It's good practice to clean the string before parsing,
+        # as GPT models can sometimes include leading/trailing characters or markdown.
+        match = re.search(r"\{.*\}", structured_data_str, re.DOTALL)
+        if match:
+            json_string = match.group(0)
+            structured_data = json.loads(json_string)
+            return structured_data
+        else:
+            logger.error(f"Failed to extract JSON from AI response: {structured_data_str}")
+            return {"error": "Failed to parse structured data from AI response."}
+
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decoding error: {e}. Response was: {response.choices[0].message.content}")
+        return {"error": "AI returned invalid JSON."}
     except Exception as e:
         logger.error(f"Voice structuring error: {e}")
         return {"error": f"Failed to structure voice input: {str(e)}"}
