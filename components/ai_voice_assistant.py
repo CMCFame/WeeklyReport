@@ -26,7 +26,7 @@ def render_ai_voice_assistant():
     
     # Check if OpenAI API is configured
     if not setup_openai_api():
-        st.info("👆 Please configure your OpenAI API key above to use the Voice Assistant.")
+        st.error("🔑 OpenAI API is not configured. Please contact your administrator.")
         return
     
     # Initialize session state
