@@ -50,9 +50,9 @@ def setup_openai_api():
                 
                 # Test the API key
                 try:
-                    # Simple test call
+                    # Simple test call with o4-mini model
                     response = openai.chat.completions.create(
-                        model="gpt-3.5-turbo",
+                        model="o4-mini-2025-04-16",
                         messages=[{"role": "user", "content": "Test"}],
                         max_tokens=1
                     )
@@ -290,10 +290,9 @@ async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
         """
         
         response = openai.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200,
-            temperature=0.7
+            max_tokens=200
         )
         
         suggestions_text = response.choices[0].message.content
@@ -375,10 +374,9 @@ def generate_executive_summary(reports: List[Dict], summary_type: str = "Executi
             """
         
         response = openai.chat.completions.create(
-            model="gpt-4",
+            model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=500,
-            temperature=0.3
+            max_tokens=500
         )
         
         return response.choices[0].message.content
@@ -452,10 +450,9 @@ def structure_voice_input(transcription: str) -> Dict:
         """
         
         response = openai.chat.completions.create(
-            model="gpt-4",
+            model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=800,
-            temperature=0.2
+            max_tokens=800
         )
         
         # Parse JSON response
