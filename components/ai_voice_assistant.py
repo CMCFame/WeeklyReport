@@ -36,7 +36,8 @@ def render_ai_voice_assistant():
     render_voice_recording_section()
     
     # Processing and review section
-    if st.session_state.get('voice_transcription'):
+    # Only show these sections if transcription or structured data is available
+    if st.session_state.get('voice_transcription') or st.session_state.get('structured_voice_data'):
         render_transcription_review()
     
     if st.session_state.get('structured_voice_data'):
@@ -53,7 +54,7 @@ def render_voice_recording_section():
         
         **Current Work (2-3 minutes):**
         - Projects you're working on this week
-        - Progress percentages (e.g., "about 70% complete")
+        - Progress percentages (e.g., "about 80% complete")
         - Current status and priorities
         - Any blockers or dependencies
         
@@ -85,20 +86,34 @@ def render_voice_recording_section():
         st.write("### Start Recording Your Update")
         st.info("💡 **Optimal length:** 3-5 minutes for a complete update")
         
+        # Placeholder for dynamic recording/processing status message
+        status_message_placeholder = st.empty()
+        
+        # Display processing status if available
+        if st.session_state.get('processing_status'):
+            status_message_placeholder.info(st.session_state.get('processing_status'))
+        else:
+            status_message_placeholder.info("Click the microphone to start recording. Pause for 3 seconds to stop.")
+        
         # Audio recorder
         audio_bytes = audio_recorder(
             text="Click to start recording",
-            recording_color="#e74c3c",
-            neutral_color="#34495e",
+            recording_color="#e74c3c", # Red when recording
+            neutral_color="#34495e",   # Dark blue/gray when idle
             icon_name="microphone",
             icon_size="2x",
             pause_threshold=3.0,  # Pause for 3 seconds to stop
             sample_rate=16000
         )
         
+        # This block executes AFTER recording is finished and audio_bytes is available
         if audio_bytes:
-            st.success("🎵 Audio recorded successfully!")
-            
+            # Clear previous processing status if it was just completed
+            if st.session_state.get('processing_status') == "Processing complete.":
+                status_message_placeholder.success("🎵 Recording complete! Audio captured.")
+            elif not st.session_state.get('processing_status'): # Only if no processing is ongoing
+                 status_message_placeholder.success("🎵 Recording complete! Audio captured.")
+
             # Display audio player
             st.audio(audio_bytes, format="audio/wav")
             
@@ -112,9 +127,15 @@ def render_voice_recording_section():
                     st.rerun()
             
             with col_process2:
-                if st.button("🚀 Process Recording", type="primary", use_container_width=True):
-                    process_audio_recording(audio_bytes)
-    
+                # Only show process button if not already processing
+                if not st.session_state.get('processing_status') or \
+                   st.session_state.get('processing_status') == "Transcription failed." or \
+                   st.session_state.get('processing_status') == "Structuring failed.":
+                    if st.button("🚀 Process Recording", type="primary", use_container_width=True):
+                        process_audio_recording(audio_bytes)
+                else:
+                    st.button("Processing...", disabled=True, use_container_width=True) # Indicate processing is active
+        
     with col2:
         st.write("### Quick Stats")
         
@@ -134,47 +155,63 @@ def render_voice_recording_section():
         # Recording quality indicator
         if audio_bytes:
             audio_size = len(audio_bytes)
-            if audio_size > 100000:  # > 100KB, roughly 30+ seconds
-                st.success("✅ Good length")
-            elif audio_size > 50000:  # > 50KB, roughly 15+ seconds
-                st.warning("⚠️ Short recording")
-            else:
-                st.error("❌ Too short")
+            # Rough estimate: 16kHz sample rate, 2 bytes per sample (for 16-bit audio), mono channel
+            # So, 1 second = 16000 * 2 = 32000 bytes
+            duration_estimate = audio_size / 32000  
             
-            duration_estimate = audio_size / 32000  # Rough estimate
+            if duration_estimate > 30: 
+                st.success(f"✅ Good length ({duration_estimate:.1f} seconds)")
+            elif duration_estimate > 10: 
+                st.warning(f"⚠️ Short recording ({duration_estimate:.1f} seconds)")
+            else:
+                st.error(f"❌ Too short ({duration_estimate:.1f} seconds)")
+            
             st.write(f"**Estimated duration:** ~{duration_estimate:.1f} seconds")
 
-def process_audio_recording(audio_bytes):
-    """Process the audio recording through transcription and structuring."""
+def process_audio_recording(input_data):
+    """
+    Process the audio recording through transcription and structuring.
+    Can take audio_bytes or a transcription string.
+    """
     
-    # Update stats
-    st.session_state.voice_session_stats['recordings_made'] += 1
+    # Update stats (only for initial audio processing, not re-processing text)
+    if isinstance(input_data, bytes):
+        st.session_state.voice_session_stats['recordings_made'] += 1
+        transcription_source = "audio"
+    else: # It's a string, meaning re-processing from edited transcription
+        transcription_source = "text"
+        st.session_state.voice_transcription = input_data # Update session state with edited text
     
-    with st.spinner("🤖 Processing your recording..."):
+    with st.spinner("🤖 Processing your input..."):
         
-        # Step 1: Transcribe audio
-        st.write("🎯 **Step 1:** Converting speech to text...")
         progress_bar = st.progress(0)
         
-        transcription = transcribe_audio(audio_bytes)
-        progress_bar.progress(33)
-        
-        if transcription.startswith("Transcription failed") or transcription.startswith("Transcription unavailable"):
-            st.error(f"❌ {transcription}")
-            return
-        
-        # Store transcription
-        st.session_state.voice_transcription = transcription
-        progress_bar.progress(66)
-        
+        if transcription_source == "audio":
+            # Step 1: Transcribe audio
+            st.session_state.processing_status = "🎯 Step 1: Converting speech to text..."
+            transcription = transcribe_audio(input_data)
+            progress_bar.progress(33)
+            
+            if transcription.startswith("Transcription failed") or transcription.startswith("Transcription unavailable"):
+                st.error(f"❌ {transcription}")
+                st.session_state.processing_status = "Transcription failed."
+                return
+            
+            st.session_state.voice_transcription = transcription
+            progress_bar.progress(66)
+        else: # Already have transcription from edited text
+            transcription = st.session_state.voice_transcription
+            progress_bar.progress(66) # Skip transcription step progress
+            
         # Step 2: Structure the content
-        st.write("🧠 **Step 2:** Analyzing and structuring content...")
+        st.session_state.processing_status = "🧠 Step 2: Analyzing and structuring content with AI..."
         
         structured_data = structure_voice_input(transcription)
         progress_bar.progress(100)
         
         if 'error' in structured_data:
             st.error(f"❌ {structured_data['error']}")
+            st.session_state.processing_status = "Structuring failed."
             return
         
         # Store structured data
@@ -182,6 +219,7 @@ def process_audio_recording(audio_bytes):
         st.session_state.voice_session_stats['transcriptions_processed'] += 1
         
         st.success("✅ Processing complete! Review your structured report below.")
+        st.session_state.processing_status = "Processing complete."
         time.sleep(1)  # Brief pause for user experience
         st.rerun()
 
@@ -199,33 +237,40 @@ def render_transcription_review():
             "Review and edit your transcription:",
             value=transcription,
             height=200,
-            help="You can edit the transcription if there are any errors"
+            help="You can edit the transcription if there are any errors",
+            key="voice_transcription_edit" # Unique key
         )
         
-        # Update if edited
-        if edited_transcription != transcription:
+        # Check if transcription was edited
+        if edited_transcription != st.session_state.voice_transcription:
             st.session_state.voice_transcription = edited_transcription
+            # If transcription is edited, clear structured data to force re-processing
+            if 'structured_voice_data' in st.session_state:
+                del st.session_state.structured_voice_data
+            st.session_state.processing_status = "Transcription edited. Click 'Re-process' to update structured data."
+            st.info("Transcription edited. Click 'Re-process' to update structured data.")
+            st.rerun() # Rerun to reflect the change and hide structured data section
     
     with col2:
         st.write("### Transcription Quality")
         
         # Analyze transcription quality
-        word_count = len(edited_transcription.split())
+        word_count = len(st.session_state.voice_transcription.split())
         
         if word_count > 200:
             quality = "Excellent"
-            quality_color = "success"
+            quality_color = "green"
         elif word_count > 100:
             quality = "Good"
-            quality_color = "info"
+            quality_color = "blue"
         elif word_count > 50:
             quality = "Fair"
-            quality_color = "warning"
+            quality_color = "orange"
         else:
             quality = "Poor"
-            quality_color = "error"
+            quality_color = "red"
         
-        eval(f"st.{quality_color}")(f"**Quality:** {quality}")
+        st.markdown(f"<span style='color: {quality_color};'>**Quality:** {quality}</span>", unsafe_allow_html=True)
         st.write(f"**Word count:** {word_count}")
         
         # Content analysis
@@ -236,23 +281,27 @@ def render_transcription_review():
             'Accomplishments': ['completed', 'finished', 'accomplished', 'delivered']
         }
         
+        st.write("**Detected content:**")
         detected_content = []
         for category, keywords in content_keywords.items():
-            if any(keyword in edited_transcription.lower() for keyword in keywords):
+            if any(keyword in st.session_state.voice_transcription.lower() for keyword in keywords):
                 detected_content.append(category)
         
-        st.write("**Detected content:**")
-        for content in detected_content:
-            st.write(f"✅ {content}")
+        if detected_content:
+            for content in detected_content:
+                st.write(f"✅ {content}")
+        else:
+            st.write("No key content detected. Try speaking more clearly.")
         
-        # Re-process button
-        if st.button("🔄 Re-process", use_container_width=True):
-            if edited_transcription != transcription:
-                structured_data = structure_voice_input(edited_transcription)
-                if 'error' not in structured_data:
-                    st.session_state.structured_voice_data = structured_data
-                    st.success("✅ Re-processed successfully!")
-                    st.rerun()
+        # Re-process button - only enabled if transcription has been edited or if structuring failed
+        if st.session_state.get('processing_status') == "Transcription edited. Click 'Re-process' to update structured data." or \
+           st.session_state.get('processing_status') == "Structuring failed.":
+            if st.button("🔄 Re-process", use_container_width=True):
+                # Call process_audio_recording with the current (edited) transcription string
+                process_audio_recording(st.session_state.voice_transcription)
+        else:
+            st.button("🔄 Re-process", use_container_width=True, disabled=True)
+
 
 def render_structured_data_review():
     """Render the structured data review and form population."""
@@ -517,7 +566,8 @@ def clear_voice_session_data():
     """Clear all voice-related session data."""
     keys_to_clear = [
         'voice_transcription',
-        'structured_voice_data'
+        'structured_voice_data',
+        'processing_status' # Clear the processing status message
     ]
     
     for key in keys_to_clear:
@@ -589,3 +639,4 @@ def render_voice_analytics():
                 st.info("👍 Good voice assistant usage")
             else:
                 st.warning("💡 Consider reviewing voice recording tips for better results")
+
