@@ -16,29 +16,57 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def setup_openai_api():
-    """Setup OpenAI API key from Streamlit secrets."""
-    try:
-        # Get API key from Streamlit secrets
-        api_key = st.secrets.get("OPENAI_API_KEY")
-        
-        if not api_key:
-            st.error("🔑 OpenAI API key not found in secrets. Please configure it in your Streamlit app settings.")
-            st.info("To add the API key:\n1. Go to your Streamlit app settings\n2. Navigate to the Secrets section\n3. Add: OPENAI_API_KEY = 'your-api-key-here'")
-            return False
-        
-        # Set the API key
-        openai.api_key = api_key
-        
-        # Store in session state for consistency with other parts of the app
-        st.session_state.openai_api_key = api_key
-        
+    """Setup OpenAI API key with user input if not configured."""
+    # Check if API key is already set
+    if hasattr(st.session_state, 'openai_api_key') and st.session_state.openai_api_key:
+        openai.api_key = st.session_state.openai_api_key
         return True
+    
+    # Check if we need to prompt for API key
+    st.warning("🔑 OpenAI API key required for AI features")
+    
+    with st.expander("Setup OpenAI API Key", expanded=True):
+        st.write("To use AI features, you need an OpenAI API key:")
+        st.write("1. Visit [OpenAI Platform](https://platform.openai.com)")
+        st.write("2. Create a new API key")
+        st.write("3. Enter it below")
         
-    except Exception as e:
-        st.error(f"❌ Error setting up OpenAI API: {str(e)}")
-        return False
+        api_key = st.text_input(
+            "OpenAI API Key", 
+            type="password",
+            help="Your API key will be stored securely for this session"
+        )
+        
+        storage_option = st.radio(
+            "Storage Option",
+            ["Temporary (this session only)", "Session Storage (until browser restart)"],
+            help="Choose how long to remember your API key"
+        )
+        
+        if st.button("Save API Key"):
+            if api_key.startswith('sk-'):
+                st.session_state.openai_api_key = api_key
+                openai.api_key = api_key
+                
+                # Test the API key
+                try:
+                    # Simple test call
+                    response = openai.chat.completions.create(
+                        model="gpt-3.5-turbo",
+                        messages=[{"role": "user", "content": "Test"}],
+                        max_tokens=1
+                    )
+                    st.success("✅ API key validated successfully!")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ API key validation failed: {str(e)}")
+                    return False
+            else:
+                st.error("❌ Invalid API key format. Should start with 'sk-'")
+                return False
+    
+    return False
 
-# Rest of the file remains the same...
 def analyze_sentiment(text: str) -> Dict:
     """Analyze sentiment of text using TextBlob."""
     try:
@@ -244,7 +272,7 @@ def predict_burnout_risk(user_reports: List[Dict]) -> Dict:
 async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
     """Generate AI suggestions for report content."""
     if not setup_openai_api():
-        return ["AI suggestions unavailable - OpenAI API key not configured"]
+        return ["AI suggestions unavailable - please configure OpenAI API key"]
     
     try:
         prompt = f"""
@@ -262,9 +290,10 @@ async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
         """
         
         response = openai.chat.completions.create(
-            model="o4-mini-2025-04-16",
+            model="gpt-3.5-turbo",
             messages=[{"role": "user", "content": prompt}],
-            max_completion_tokens=300
+            max_tokens=200,
+            temperature=0.7
         )
         
         suggestions_text = response.choices[0].message.content
@@ -279,7 +308,7 @@ async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
 def generate_executive_summary(reports: List[Dict], summary_type: str = "Executive") -> str:
     """Generate executive summary from reports."""
     if not setup_openai_api():
-        return "Executive summary unavailable - OpenAI API key not configured"
+        return "Executive summary unavailable - please configure OpenAI API key"
     
     try:
         # Prepare report data
@@ -346,9 +375,10 @@ def generate_executive_summary(reports: List[Dict], summary_type: str = "Executi
             """
         
         response = openai.chat.completions.create(
-            model="o4-mini-2025-04-16",
+            model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
-            max_completion_tokens=500
+            max_tokens=500,
+            temperature=0.3
         )
         
         return response.choices[0].message.content
@@ -360,7 +390,7 @@ def generate_executive_summary(reports: List[Dict], summary_type: str = "Executi
 def transcribe_audio(audio_bytes: bytes) -> str:
     """Transcribe audio using OpenAI Whisper."""
     if not setup_openai_api():
-        return "Transcription unavailable - OpenAI API key not configured"
+        return "Transcription unavailable - please configure OpenAI API key"
     
     try:
         # Save audio to temporary file
@@ -390,7 +420,7 @@ def transcribe_audio(audio_bytes: bytes) -> str:
 def structure_voice_input(transcription: str) -> Dict:
     """Structure voice input into report sections using AI."""
     if not setup_openai_api():
-        return {"error": "AI structuring unavailable - OpenAI API key not configured"}
+        return {"error": "AI structuring unavailable - please configure OpenAI API key"}
     
     try:
         prompt = f"""
@@ -422,9 +452,10 @@ def structure_voice_input(transcription: str) -> Dict:
         """
         
         response = openai.chat.completions.create(
-            model="o4-mini-2025-04-16",
+            model="gpt-4",
             messages=[{"role": "user", "content": prompt}],
-            max_completion_tokens=800
+            max_tokens=800,
+            temperature=0.2
         )
         
         # Parse JSON response
