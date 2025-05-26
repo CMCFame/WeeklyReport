@@ -539,7 +539,7 @@ def generate_ai_recommendations(reports, predictions):
         response = openai.chat.completions.create(
             model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=600,
+            max_completion_tokens=600  # Changed from max_tokens
         )
         
         recommendations_text = response.choices[0].message.content

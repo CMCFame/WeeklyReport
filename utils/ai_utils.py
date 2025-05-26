@@ -38,7 +38,6 @@ def setup_openai_api():
         st.error(f"❌ Error setting up OpenAI API: {str(e)}")
         return False
 
-# Rest of the file remains the same...
 def analyze_sentiment(text: str) -> Dict:
     """Analyze sentiment of text using TextBlob."""
     try:
@@ -264,7 +263,7 @@ async def generate_ai_suggestions(content: str, section_type: str) -> List[str]:
         response = openai.chat.completions.create(
             model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=200
+            max_completion_tokens=200  # Changed from max_tokens
         )
         
         suggestions_text = response.choices[0].message.content
@@ -348,7 +347,7 @@ def generate_executive_summary(reports: List[Dict], summary_type: str = "Executi
         response = openai.chat.completions.create(
             model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=500
+            max_completion_tokens=500  # Changed from max_tokens
         )
         
         return response.choices[0].message.content
@@ -424,7 +423,7 @@ def structure_voice_input(transcription: str) -> Dict:
         response = openai.chat.completions.create(
             model="o4-mini-2025-04-16",
             messages=[{"role": "user", "content": prompt}],
-            max_tokens=800
+            max_completion_tokens=800  # Changed from max_tokens
         )
         
         # Parse JSON response
