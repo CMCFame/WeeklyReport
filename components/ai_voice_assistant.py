@@ -32,9 +32,33 @@ def render_ai_voice_assistant():
     # Initialize session state
     init_session_state()
     
+    # Initialize processing state variables if they don't exist
+    if 'is_processing_audio' not in st.session_state:
+        st.session_state.is_processing_audio = False
+    if 'processing_status' not in st.session_state:
+        st.session_state.processing_status = None # Clear status when starting fresh
+    if 'audio_bytes_to_process' not in st.session_state: # To store audio across reruns
+        st.session_state.audio_bytes_to_process = None
+    if 'transcription_source' not in st.session_state: # To indicate if processing audio or edited text
+        st.session_state.transcription_source = None
+    if 'processing_started_this_run' not in st.session_state: # Flag to ensure pipeline runs only once per trigger
+        st.session_state.processing_started_this_run = False
+
     # Voice recording section
     render_voice_recording_section()
     
+    # This block runs on every rerun. If processing is active, it initiates the pipeline.
+    # It must be placed here, outside any button's if block, to run on subsequent reruns.
+    if st.session_state.is_processing_audio and not st.session_state.get('processing_started_this_run', False):
+        st.session_state.processing_started_this_run = True # Set flag to prevent re-entry in same run
+        with st.spinner(st.session_state.get('processing_status', "Processing...")):
+            # Call the actual processing function
+            _run_audio_processing_pipeline(
+                st.session_state.audio_bytes_to_process,
+                st.session_state.transcription_source
+            )
+        # The _run_audio_processing_pipeline will handle the final rerun itself.
+
     # Processing and review section
     # Only show these sections if transcription or structured data is available
     if st.session_state.get('voice_transcription') or st.session_state.get('structured_voice_data'):
@@ -42,6 +66,65 @@ def render_ai_voice_assistant():
     
     if st.session_state.get('structured_voice_data'):
         render_structured_data_review()
+
+# New helper function to encapsulate the heavy processing logic
+def _run_audio_processing_pipeline(input_data, transcription_source):
+    """
+    Internal function to handle the long-running audio processing pipeline.
+    Updates session state with progress and status.
+    This function is called on a subsequent rerun after a trigger.
+    """
+    # Update stats (only for initial audio processing, not re-processing text)
+    if transcription_source == "audio":
+        st.session_state.voice_session_stats['recordings_made'] += 1
+    
+    # Progress bar for internal steps (optional, as spinner covers overall progress)
+    progress_bar = st.progress(0) # Initialize a local progress bar for steps
+
+    try:
+        if transcription_source == "audio":
+            st.session_state.processing_status = "🎯 Step 1: Converting speech to text..."
+            progress_bar.progress(33)
+            transcription = transcribe_audio(input_data)
+            
+            if transcription.startswith("Transcription failed") or transcription.startswith("Transcription unavailable"):
+                st.error(f"❌ {transcription}")
+                st.session_state.processing_status = "Transcription failed."
+                return # Exit early, finally block will clean up
+            
+            st.session_state.voice_transcription = transcription
+            progress_bar.progress(66)
+        else: # Already have transcription from edited text
+            transcription = st.session_state.voice_transcription
+            progress_bar.progress(66) # Skip transcription step progress
+            
+        st.session_state.processing_status = "🧠 Step 2: Analyzing and structuring content with AI..."
+        structured_data = structure_voice_input(transcription)
+        
+        progress_bar.progress(100) # Full progress on completion
+        
+        if 'error' in structured_data:
+            st.error(f"❌ {structured_data['error']}")
+            st.session_state.processing_status = "Structuring failed."
+            return # Exit early, finally block will clean up
+        
+        st.session_state.structured_voice_data = structured_data
+        st.session_state.voice_session_stats['transcriptions_processed'] += 1
+        
+        st.success("✅ Processing complete! Review your structured report below.")
+        st.session_state.processing_status = "Processing complete."
+        
+    except Exception as e:
+        st.error(f"An unexpected error occurred during processing: {str(e)}")
+        st.session_state.processing_status = f"Error: {str(e)}"
+    finally:
+        st.session_state.is_processing_audio = False # Ensure flag is reset
+        st.session_state.processing_started_this_run = False # Reset this flag for future triggers
+        # Clear temporary audio bytes after processing
+        st.session_state.audio_bytes_to_process = None
+        st.session_state.transcription_source = None
+        st.rerun() # Always rerun to update UI with final state
+
 
 def render_voice_recording_section():
     """Render the voice recording interface."""
@@ -79,7 +162,6 @@ def render_voice_recording_section():
         *"This week I'm working on three main projects. First is the mobile app authentication module, which is about 80% complete and high priority. I'm currently integrating with the new API..."*
         """)
     
-    # Recording interface
     col1, col2 = st.columns([2, 1])
     
     with col1:
@@ -89,13 +171,18 @@ def render_voice_recording_section():
         # Placeholder for dynamic recording/processing status message
         status_message_placeholder = st.empty()
         
-        # Display processing status if available
-        if st.session_state.get('processing_status'):
-            status_message_placeholder.info(st.session_state.get('processing_status'))
+        # Display current processing status
+        if st.session_state.is_processing_audio:
+            status_message_placeholder.info(st.session_state.get('processing_status', "Processing..."))
+        elif st.session_state.get('processing_status') == "Processing complete.":
+            status_message_placeholder.success("🎵 Recording complete! Audio captured and processed.")
+        elif st.session_state.get('processing_status') and "failed" in st.session_state.get('processing_status').lower():
+            status_message_placeholder.error(st.session_state.get('processing_status'))
         else:
             status_message_placeholder.info("Click the microphone to start recording. Pause for 3 seconds to stop.")
         
         # Audio recorder
+        # Disable the recorder if processing is active
         audio_bytes = audio_recorder(
             text="Click to start recording",
             recording_color="#e74c3c", # Red when recording
@@ -103,17 +190,14 @@ def render_voice_recording_section():
             icon_name="microphone",
             icon_size="2x",
             pause_threshold=3.0,  # Pause for 3 seconds to stop
-            sample_rate=16000
+            sample_rate=16000,
+            # Disable recorder if processing is active
+            # This is a limitation of audio-recorder-streamlit, it doesn't have a disabled param.
+            # We'll rely on the button disabling and clear session state for re-recording.
         )
         
         # This block executes AFTER recording is finished and audio_bytes is available
         if audio_bytes:
-            # Clear previous processing status if it was just completed
-            if st.session_state.get('processing_status') == "Processing complete.":
-                status_message_placeholder.success("🎵 Recording complete! Audio captured.")
-            elif not st.session_state.get('processing_status'): # Only if no processing is ongoing
-                 status_message_placeholder.success("🎵 Recording complete! Audio captured.")
-
             # Display audio player
             st.audio(audio_bytes, format="audio/wav")
             
@@ -121,20 +205,22 @@ def render_voice_recording_section():
             col_process1, col_process2 = st.columns(2)
             
             with col_process1:
-                if st.button("🔄 Record Again", use_container_width=True):
-                    # Clear previous data
+                if st.button("🔄 Record Again", use_container_width=True, key="record_again_btn"):
                     clear_voice_session_data()
                     st.rerun()
             
             with col_process2:
-                # Only show process button if not already processing
-                if not st.session_state.get('processing_status') or \
-                   st.session_state.get('processing_status') == "Transcription failed." or \
-                   st.session_state.get('processing_status') == "Structuring failed.":
-                    if st.button("🚀 Process Recording", type="primary", use_container_width=True):
-                        process_audio_recording(audio_bytes)
+                # Disable process button if already processing
+                if st.session_state.is_processing_audio:
+                    st.button("Processing...", disabled=True, use_container_width=True, key="process_disabled_btn")
                 else:
-                    st.button("Processing...", disabled=True, use_container_width=True) # Indicate processing is active
+                    if st.button("🚀 Process Recording", type="primary", use_container_width=True, key="process_recording_btn"):
+                        # Set processing flag and status, then rerun to show spinner
+                        st.session_state.is_processing_audio = True
+                        st.session_state.processing_status = "Initiating processing..."
+                        st.session_state.audio_bytes_to_process = audio_bytes # Store audio bytes for next run
+                        st.session_state.transcription_source = "audio" # Indicate source is audio
+                        st.rerun() # Trigger rerun to show spinner and start processing pipeline
         
     with col2:
         st.write("### Quick Stats")
@@ -155,8 +241,6 @@ def render_voice_recording_section():
         # Recording quality indicator
         if audio_bytes:
             audio_size = len(audio_bytes)
-            # Rough estimate: 16kHz sample rate, 2 bytes per sample (for 16-bit audio), mono channel
-            # So, 1 second = 16000 * 2 = 32000 bytes
             duration_estimate = audio_size / 32000  
             
             if duration_estimate > 30: 
@@ -168,60 +252,6 @@ def render_voice_recording_section():
             
             st.write(f"**Estimated duration:** ~{duration_estimate:.1f} seconds")
 
-def process_audio_recording(input_data):
-    """
-    Process the audio recording through transcription and structuring.
-    Can take audio_bytes or a transcription string.
-    """
-    
-    # Update stats (only for initial audio processing, not re-processing text)
-    if isinstance(input_data, bytes):
-        st.session_state.voice_session_stats['recordings_made'] += 1
-        transcription_source = "audio"
-    else: # It's a string, meaning re-processing from edited transcription
-        transcription_source = "text"
-        st.session_state.voice_transcription = input_data # Update session state with edited text
-    
-    with st.spinner("🤖 Processing your input..."):
-        
-        progress_bar = st.progress(0)
-        
-        if transcription_source == "audio":
-            # Step 1: Transcribe audio
-            st.session_state.processing_status = "🎯 Step 1: Converting speech to text..."
-            transcription = transcribe_audio(input_data)
-            progress_bar.progress(33)
-            
-            if transcription.startswith("Transcription failed") or transcription.startswith("Transcription unavailable"):
-                st.error(f"❌ {transcription}")
-                st.session_state.processing_status = "Transcription failed."
-                return
-            
-            st.session_state.voice_transcription = transcription
-            progress_bar.progress(66)
-        else: # Already have transcription from edited text
-            transcription = st.session_state.voice_transcription
-            progress_bar.progress(66) # Skip transcription step progress
-            
-        # Step 2: Structure the content
-        st.session_state.processing_status = "🧠 Step 2: Analyzing and structuring content with AI..."
-        
-        structured_data = structure_voice_input(transcription)
-        progress_bar.progress(100)
-        
-        if 'error' in structured_data:
-            st.error(f"❌ {structured_data['error']}")
-            st.session_state.processing_status = "Structuring failed."
-            return
-        
-        # Store structured data
-        st.session_state.structured_voice_data = structured_data
-        st.session_state.voice_session_stats['transcriptions_processed'] += 1
-        
-        st.success("✅ Processing complete! Review your structured report below.")
-        st.session_state.processing_status = "Processing complete."
-        time.sleep(1)  # Brief pause for user experience
-        st.rerun()
 
 def render_transcription_review():
     """Render the transcription review section."""
@@ -229,7 +259,6 @@ def render_transcription_review():
     
     transcription = st.session_state.voice_transcription
     
-    # Show transcription with edit capability
     col1, col2 = st.columns([3, 1])
     
     with col1:
@@ -238,10 +267,10 @@ def render_transcription_review():
             value=transcription,
             height=200,
             help="You can edit the transcription if there are any errors",
-            key="voice_transcription_edit" # Unique key
+            key="voice_transcription_edit" 
         )
         
-        # Check if transcription was edited
+        # Check if transcription was edited and update session state
         if edited_transcription != st.session_state.voice_transcription:
             st.session_state.voice_transcription = edited_transcription
             # If transcription is edited, clear structured data to force re-processing
@@ -249,7 +278,7 @@ def render_transcription_review():
                 del st.session_state.structured_voice_data
             st.session_state.processing_status = "Transcription edited. Click 'Re-process' to update structured data."
             st.info("Transcription edited. Click 'Re-process' to update structured data.")
-            st.rerun() # Rerun to reflect the change and hide structured data section
+            st.rerun() 
     
     with col2:
         st.write("### Transcription Quality")
@@ -293,14 +322,18 @@ def render_transcription_review():
         else:
             st.write("No key content detected. Try speaking more clearly.")
         
-        # Re-process button - only enabled if transcription has been edited or if structuring failed
-        if st.session_state.get('processing_status') == "Transcription edited. Click 'Re-process' to update structured data." or \
-           st.session_state.get('processing_status') == "Structuring failed.":
-            if st.button("🔄 Re-process", use_container_width=True):
-                # Call process_audio_recording with the current (edited) transcription string
-                process_audio_recording(st.session_state.voice_transcription)
-        else:
-            st.button("🔄 Re-process", use_container_width=True, disabled=True)
+        # Re-process button - enabled if transcription has been edited or if structuring failed, and not currently processing
+        is_reprocess_enabled = (st.session_state.get('processing_status') == "Transcription edited. Click 'Re-process' to update structured data." or \
+                                st.session_state.get('processing_status') == "Structuring failed.") and \
+                                not st.session_state.is_processing_audio
+        
+        if st.button("🔄 Re-process", use_container_width=True, disabled=not is_reprocess_enabled, key="reprocess_transcription_btn"):
+            # Set processing flag and status, then rerun to show spinner
+            st.session_state.is_processing_audio = True
+            st.session_state.processing_status = "Initiating re-processing from edited text..."
+            st.session_state.audio_bytes_to_process = st.session_state.voice_transcription # Store edited text for next run
+            st.session_state.transcription_source = "text" # Indicate source is text
+            st.rerun() # Trigger rerun to show spinner and start processing pipeline
 
 
 def render_structured_data_review():
@@ -439,19 +472,19 @@ def render_structured_data_review():
         # Action buttons
         st.write("### Actions")
         
-        if st.button("📋 Load to Form", type="primary", use_container_width=True):
+        if st.button("📋 Load to Form", type="primary", use_container_width=True, key="load_to_form_btn"):
             load_voice_data_to_form(structured_data)
         
-        if st.button("💾 Save as Draft", use_container_width=True):
+        if st.button("💾 Save as Draft", use_container_width=True, key="save_draft_btn"):
             save_voice_report_as_draft(structured_data)
         
         if score >= 70:
-            if st.button("🚀 Submit Report", use_container_width=True):
+            if st.button("🚀 Submit Report", use_container_width=True, key="submit_report_btn"):
                 save_voice_report_as_final(structured_data)
         else:
             st.info("Complete missing sections to enable submission")
         
-        if st.button("🔄 Start Over", use_container_width=True):
+        if st.button("🔄 Start Over", use_container_width=True, key="start_over_btn"):
             clear_voice_session_data()
             st.rerun()
 
@@ -567,7 +600,10 @@ def clear_voice_session_data():
     keys_to_clear = [
         'voice_transcription',
         'structured_voice_data',
-        'processing_status' # Clear the processing status message
+        'processing_status', # Clear the processing status message
+        'audio_bytes_to_process', # Clear stored audio
+        'transcription_source', # Clear source flag
+        'processing_started_this_run' # Reset the flag
     ]
     
     for key in keys_to_clear:
