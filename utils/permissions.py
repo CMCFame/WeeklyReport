@@ -4,6 +4,7 @@
 import streamlit as st
 import json
 from pathlib import Path
+from utils.user_auth import get_user, AVAILABLE_FEATURES # Import get_user and AVAILABLE_FEATURES
 
 def ensure_permissions_directory():
     """Ensure the permissions directory exists."""
@@ -11,7 +12,7 @@ def ensure_permissions_directory():
 
 def get_default_permissions():
     """Get default permissions configuration."""
-    # Default permissions - all sections enabled by default
+    # Default permissions - all sections enabled by default at the role level
     return {
         "goals_tracking": True,  # Goals & Tracking section
         "team_management": True,  # Team Management section
@@ -32,7 +33,6 @@ def load_permissions():
     
     config_file = Path("data/permissions/section_permissions.json")
     if not config_file.exists():
-        # Create default permissions file
         permissions = get_default_permissions()
         save_permissions(permissions)
         return permissions
@@ -57,53 +57,82 @@ def save_permissions(permissions):
         st.error(f"Error saving permissions: {str(e)}")
         return False
 
-def check_section_access(section_name, user_role="team_member"):
-    """Check if a user has access to a section."""
-    # Load permissions
-    permissions = load_permissions()
+def check_section_access(section_name, user_role="team_member", username=None): 
+    """
+    Check if a user has access to a section.
+    Considers role-based general section permissions and user-specific feature flags.
     
-    # Admin always has access to all sections
+    Args:
+        section_name (str): The name of the section/page being checked (e.g., "AI Voice Assistant").
+                            This should match a key in AVAILABLE_FEATURES.
+        user_role (str): The role of the current user (e.g., "admin", "manager", "team_member").
+        username (str): The username of the current user. Required for user-specific checks.
+        
+    Returns:
+        bool: True if the user has access, False otherwise.
+    """
+    # 1. Admin always has access to all sections and features, regardless of other settings
     if user_role == "admin":
         return True
     
-    # Check admin features for managers and team members
-    if section_name in ["Import Users", "Import Reports", "System Settings", "Import Objectives"]:
-        return permissions.get("admin_features", {}).get(user_role, False)
+    # 2. Check user-specific feature flag first (if username is provided and feature is defined)
+    if username and section_name in AVAILABLE_FEATURES:
+        user_data = get_user(username) # Retrieve the user's full data
+        if user_data:
+            user_feature_permissions = user_data.get("feature_permissions", {})
+            # If the feature is explicitly set to False for this user, deny access.
+            # If it's True or not found in their specific permissions, proceed to role-based check.
+            if not user_feature_permissions.get(section_name, True): # Default to True if not in user's specific settings
+                return False # User-specific setting denies access, overrides role permission
+
+    # 3. If no user-specific override denied access, check role-based permissions
+    role_permissions = load_permissions() # Load general role-based permissions
+
+    # Check specific admin feature pages (these are typically restricted by role in permissions.json)
+    admin_feature_pages = ["Import Users", "Import Reports", "System Settings", "User Management", "Import Objectives"]
+    if section_name in admin_feature_pages:
+        return role_permissions.get("admin_features", {}).get(user_role, False)
         
-    # Check specific section permissions
-    if section_name in ["Team Objectives", "Goal Dashboard", "OKR Management"]:
-        return permissions.get("goals_tracking", True)
+    # Check Goals & Tracking category pages
+    goals_tracking_pages = ["Team Objectives", "Goal Dashboard", "OKR Management"]
+    if section_name in goals_tracking_pages:
+        return role_permissions.get("goals_tracking", True)
         
-    if section_name in ["User Management", "Team Structure", "1:1 Meetings"]:
-        # Managers always have access to team management
+    # Check Team Management category pages (User Management is an admin_feature_page, handled above)
+    team_management_pages = ["Team Structure", "1:1 Meetings"]
+    if section_name in team_management_pages:
+        # Managers always have access to these specific team management pages by role definition
         if user_role == "manager":
             return True
-        return permissions.get("team_management", True)
+        return role_permissions.get("team_management", True) # For team members if allowed
     
-    if section_name == "Advanced Analytics":
-        return permissions.get("advanced_analytics", True)
-        
-    if section_name == "Batch Export":
-        return permissions.get("batch_export", True)
+    # Check AI Features: ai_assistant (all users), ai_intelligence (manager/admin)
+    ai_assistant_pages = ["AI Voice Assistant", "Smart Suggestions"]
+    if section_name in ai_assistant_pages:
+        return role_permissions.get("ai_assistant", True)
     
-    # NEW AI PERMISSIONS
-    # AI Assistant features (available to all users)
-    if section_name in ["AI Voice Assistant", "Smart Suggestions"]:
-        return permissions.get("ai_assistant", True)
-    
-    # AI Intelligence features (managers and admins only)
-    if section_name in ["Team Health Dashboard", "Predictive Intelligence", "Executive Summary"]:
-        if user_role in ["admin", "manager"]:
-            return permissions.get("ai_intelligence", True)
-        return False
-    
-    # By default, allow access
+    ai_intelligence_pages = ["Team Health Dashboard", "Predictive Intelligence", "Executive Summary"]
+    if section_name in ai_intelligence_pages:
+        if user_role in ["admin", "manager"]: 
+            return role_permissions.get("ai_intelligence", True)
+        return False # Team members don't get these by default
+
+    # Direct check for other top-level permission keys (e.g., "Advanced Analytics", "Batch Export")
+    # These are often directly named in permissions.json
+    if section_name in role_permissions:
+        return role_permissions.get(section_name, True) 
+
+    # For general pages not explicitly listed in categories or as direct keys in permissions.json,
+    # and not explicitly denied by user-specific flags, default to True.
+    # This covers core pages like "Weekly Report", "Past Reports", "User Profile", "Project Data"
+    # unless they are explicitly in AVAILABLE_FEATURES and disabled for the user.
     return True
+
 
 def render_section_permissions_settings():
     """Render section permissions settings."""
-    st.subheader("Section Permissions")
-    st.write("Enable or disable sections for different user roles.")
+    st.subheader("Section Permissions (Role-Based)")
+    st.write("Enable or disable sections for different user roles. User-specific feature permissions can further restrict access and are managed under 'User Actions & Permissions' in the User Management page.")
     
     # Load current permissions
     permissions = load_permissions()
@@ -119,38 +148,38 @@ def render_section_permissions_settings():
         )
         
         team_management = st.checkbox(
-            "Team Management (Team Structure, 1:1 Meetings)",
+            "Team Management (Team Structure, 1:1 Meetings)", 
             value=permissions.get("team_management", True)
         )
         
         advanced_analytics = st.checkbox(
-            "Advanced Analytics",
+            "Advanced Analytics", 
             value=permissions.get("advanced_analytics", True)
         )
         
         batch_export = st.checkbox(
-            "Batch Export",
+            "Batch Export", 
             value=permissions.get("batch_export", True)
         )
         
-        # NEW AI PERMISSIONS
+        # AI PERMISSIONS
         st.write("### AI Features")
         
         ai_assistant = st.checkbox(
-            "AI Assistant (Voice Assistant, Smart Suggestions) - All Users",
+            "AI Assistant (Voice Assistant, Smart Suggestions) - All Users", 
             value=permissions.get("ai_assistant", True),
             help="AI features available to all team members"
         )
         
         ai_intelligence = st.checkbox(
-            "AI Intelligence (Team Health, Predictive Intelligence, Executive Summary) - Managers/Admins Only",
+            "AI Intelligence (Team Health, Predictive Intelligence, Executive Summary) - Managers/Admins Only", 
             value=permissions.get("ai_intelligence", True),
             help="Advanced AI analytics for managers and administrators"
         )
         
         # Admin features by role
-        st.write("### Admin Features")
-        st.write("Which roles can access admin features:")
+        st.write("### Admin Features (e.g., Import Users/Reports, System Settings, User Management)")
+        st.write("Which roles can access these admin-level pages:")
         
         admin_features = permissions.get("admin_features", {})
         
@@ -164,18 +193,18 @@ def render_section_permissions_settings():
         
         manager_admin = st.checkbox(
             "Manager",
-            value=admin_features.get("manager", True),
-            help="Allow managers to access admin features"
+            value=admin_features.get("manager", True), 
+            help="Allow managers to access admin-level pages"
         )
         
         team_member_admin = st.checkbox(
             "Team Member",
-            value=admin_features.get("team_member", False),
-            help="Allow team members to access admin features"
+            value=admin_features.get("team_member", False), 
+            help="Allow team members to access admin-level pages"
         )
         
         # Submit button
-        submit = st.form_submit_button("Save Permissions")
+        submit = st.form_submit_button("Save Role-Based Section Permissions")
         
         if submit:
             # Update permissions
@@ -187,13 +216,14 @@ def render_section_permissions_settings():
                 "ai_assistant": ai_assistant,
                 "ai_intelligence": ai_intelligence,
                 "admin_features": {
-                    "admin": True,  # Always true
+                    "admin": True, 
                     "manager": manager_admin,
                     "team_member": team_member_admin
                 }
             }
             
             if save_permissions(new_permissions):
-                st.success("Permissions updated successfully!")
+                st.success("Role-based section permissions updated successfully!")
             else:
-                st.error("Failed to update permissions.")
+                st.error("Failed to update role-based section permissions.")
+

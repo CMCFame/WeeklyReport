@@ -19,6 +19,47 @@ ROLES = {
     "team_member": "Team Member"
 }
 
+# Definable features that can be toggled per user by an administrator.
+# The keys should correspond to the 'section_name' passed to check_section_access
+# or to specific functionalities. The values are user-friendly labels for the UI.
+AVAILABLE_FEATURES = {
+    # Reporting Section
+    "Weekly Report": "Weekly Report Form",
+    "Past Reports": "Past Reports",
+    "Report Templates": "Report Templates",
+    "Report Analytics": "Report Analytics",
+    "Advanced Analytics": "Advanced Analytics",
+    "Batch Export": "Batch Export",
+
+    # AI Assistant Section
+    "AI Voice Assistant": "AI Voice Assistant",
+    "Smart Suggestions": "Smart Suggestions",
+
+    # AI Intelligence Section (typically Manager/Admin only by role, but can be disabled per user)
+    "Team Health Dashboard": "Team Health Dashboard",
+    "Predictive Intelligence": "Predictive Intelligence",
+    "Executive Summary": "Executive Summary",
+
+    # Goals & Tracking Section
+    "Team Objectives": "Team Objectives",
+    "Goal Dashboard": "Goal Dashboard",
+    "OKR Management": "OKR Management",
+    "Import Objectives": "Import Objectives",
+
+    # Team Management Section
+    "User Management": "User Management (Admin Page)", # This is an admin feature page
+    "Team Structure": "Team Structure",
+    "1:1 Meetings": "1:1 Meetings",
+
+    # Administration Section (specific pages)
+    "User Profile": "User Profile", # Users can always access their own profile
+    "Project Data": "Project Data Management",
+    "Import Users": "Import Users", # Admin feature page
+    "Import Reports": "Import Reports", # Admin feature page
+    "System Settings": "System Settings", # Admin feature page
+}
+
+
 def ensure_user_directory():
     """Ensure the user data directory exists."""
     Path("data/users").mkdir(parents=True, exist_ok=True)
@@ -56,6 +97,10 @@ def create_user(username, password, email, full_name, role="team_member"):
     if os.path.exists(f"data/users/{username}.json"):
         return None
     
+    # Initialize feature_permissions: by default, all available features are enabled for a new user.
+    # The admin can then disable them.
+    initial_feature_permissions = {feature_key: True for feature_key in AVAILABLE_FEATURES.keys()}
+
     # Create user record
     user_data = {
         "id": str(uuid.uuid4()),
@@ -65,7 +110,8 @@ def create_user(username, password, email, full_name, role="team_member"):
         "full_name": full_name,
         "role": role,
         "created_at": datetime.now().isoformat(),
-        "last_login": None
+        "last_login": None,
+        "feature_permissions": initial_feature_permissions # New field
     }
     
     # Save user data
@@ -153,6 +199,22 @@ def get_user(username):
         with open(user_file, 'r') as f:
             user_data = json.load(f)
         
+        # Ensure feature_permissions field exists and is up-to-date for older users or new features
+        if "feature_permissions" not in user_data:
+            user_data["feature_permissions"] = {}
+        
+        # Add any new features that might have been added to AVAILABLE_FEATURES
+        # and ensure existing ones are present. Default to True (enabled).
+        for feature_key in AVAILABLE_FEATURES.keys():
+            if feature_key not in user_data["feature_permissions"]:
+                user_data["feature_permissions"][feature_key] = True
+        
+        # Remove any features from user_data that are no longer in AVAILABLE_FEATURES
+        # This keeps the user's feature_permissions clean if features are removed from the app.
+        keys_to_remove = [key for key in user_data["feature_permissions"] if key not in AVAILABLE_FEATURES]
+        for key in keys_to_remove:
+            user_data["feature_permissions"].pop(key)
+
         return user_data
     except Exception as e:
         st.error(f"Error retrieving user: {str(e)}")
@@ -163,7 +225,8 @@ def update_user(username, updates):
     
     Args:
         username (str): Username
-        updates (dict): Dictionary of fields to update
+        updates (dict): Dictionary of fields to update. 
+                        Can include 'feature_permissions' as a dict.
         
     Returns:
         dict: Updated user data if successful, None otherwise
@@ -180,7 +243,15 @@ def update_user(username, updates):
         for key, value in updates.items():
             # Don't allow changing username or id
             if key not in ["username", "id"]:
-                user_data[key] = value
+                if key == "feature_permissions": # Special handling for feature permissions
+                    # Ensure the feature_permissions field exists
+                    if "feature_permissions" not in user_data:
+                        user_data["feature_permissions"] = {}
+                    # Update individual feature permissions
+                    for feature_key, feature_value in value.items():
+                        user_data["feature_permissions"][feature_key] = feature_value
+                else:
+                    user_data[key] = value
         
         # Handle password change separately
         if "password" in updates:
@@ -228,15 +299,16 @@ def generate_reset_code(username_or_email):
     username = None
     
     # Check for exact username match
-    if get_user(username_or_email):
-        user_data = get_user(username_or_email)
+    exact_user = get_user(username_or_email) 
+    if exact_user:
+        user_data = exact_user
         username = username_or_email
     else:
         # Search by email
         all_users = get_all_users(include_sensitive=True)
         for user in all_users:
             if user.get("email") == username_or_email:
-                user_data = user
+                user_data = user 
                 username = user.get("username")
                 break
     
@@ -250,7 +322,7 @@ def generate_reset_code(username_or_email):
         # Add reset code and expiration to user data
         expiration = (datetime.now() + timedelta(minutes=30)).isoformat()
         
-        # Read the current file to preserve all data
+        # Read the current file to preserve all data, including feature_permissions
         user_file = f"data/users/{username}.json"
         with open(user_file, 'r') as f:
             current_user_data = json.load(f)
@@ -281,7 +353,7 @@ def verify_reset_code(username, code):
         bool: True if code is valid, False otherwise
     """
     try:
-        user_data = get_user(username)
+        user_data = get_user(username) 
         
         if not user_data:
             return False
@@ -351,7 +423,7 @@ def init_session_auth():
     if "authenticated" not in st.session_state:
         st.session_state.authenticated = False
     if "user_info" not in st.session_state:
-        st.session_state.user_info = None
+        st.session_state.user_info = None 
     if "login_error" not in st.session_state:
         st.session_state.login_error = None
     if "show_register" not in st.session_state:
@@ -367,10 +439,10 @@ def init_session_auth():
 
 def login_user(username, password):
     """Process login attempt and update session state."""
-    user_data = authenticate_user(username, password)
+    user_data = authenticate_user(username, password) 
     if user_data:
         st.session_state.authenticated = True
-        st.session_state.user_info = user_data
+        st.session_state.user_info = user_data 
         st.session_state.login_error = None
         return True
     else:
@@ -422,7 +494,7 @@ def create_admin_if_needed():
     
     # Check if users directory is empty
     if not list(Path("data/users").glob("*.json")):
-        create_user(
+        create_user( 
             username="admin",
             password="admin123",  # Should be changed immediately
             email="admin@example.com",
@@ -431,3 +503,24 @@ def create_admin_if_needed():
         )
         st.warning("Default admin user created! Username: admin, Password: admin123")
         st.warning("Please change the default password immediately!")
+
+# New function to check specific feature permission for a user
+def is_feature_enabled_for_user(username, feature_key_name):
+    """
+    Checks if a specific feature is enabled for a user.
+    Admins always have features enabled.
+    For other users, it checks their 'feature_permissions'.
+    Defaults to True if the permission is not explicitly set for the user.
+    """
+    user_data = get_user(username)
+    if not user_data:
+        return False # User not found or error loading
+
+    if user_data.get("role") == "admin":
+        return True # Admins have all features enabled by definition
+
+    feature_permissions = user_data.get("feature_permissions", {})
+    # If a feature is not in their permissions dict, assume it's enabled by default (True)
+    # This ensures newly added features are available to existing users unless explicitly disabled.
+    return feature_permissions.get(feature_key_name, True)
+

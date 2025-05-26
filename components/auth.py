@@ -4,11 +4,11 @@
 import streamlit as st
 import pandas as pd
 # Import the whole module instead of individual functions
-from utils import user_auth
+from utils import user_auth 
 
 def render_login_page():
     """Render the login page."""
-    st.title("📋 Weekly Activity Report")
+    st.title("搭 Weekly Activity Report")
     st.subheader("Login")
     
     # Login form
@@ -43,7 +43,7 @@ def render_login_page():
 
 def render_register_page():
     """Render the registration page."""
-    st.title("📋 Weekly Activity Report")
+    st.title("搭 Weekly Activity Report")
     st.subheader("Create New Account")
     
     # Registration form
@@ -61,16 +61,16 @@ def render_register_page():
                 role = st.selectbox("Role", options=list(user_auth.ROLES.keys()), 
                                     format_func=lambda x: user_auth.ROLES[x])
         
-        submitted = st.form_submit_button("Register")
+        submitted_create = st.form_submit_button("Register")
         
-        if submitted:
+        if submitted_create: 
             # Validate input
             if not username or not password or not full_name or not email:
                 st.error("All fields are required.")
             elif password != confirm_password:
                 st.error("Passwords do not match.")
             else:
-                # Create new user
+                # Create new user (this will initialize feature_permissions)
                 user_data = user_auth.create_user(username, password, email, full_name, role)
                 if user_data:
                     st.success("Account created successfully! You can now log in.")
@@ -135,7 +135,7 @@ def render_user_profile():
             if new_password:
                 if new_password != confirm_new_password:
                     st.error("New passwords do not match.")
-                    return
+                    return 
                 updates["password"] = new_password
             
             # Update user
@@ -157,7 +157,7 @@ def render_logout_button():
 
 def render_forgot_password_page():
     """Render the forgot password page."""
-    st.title("📋 Weekly Activity Report")
+    st.title("搭 Weekly Activity Report")
     st.subheader("Reset Password")
     st.write("Enter your username or email address to receive a password reset code.")
     
@@ -203,7 +203,7 @@ def render_forgot_password_page():
 
 def render_reset_password_page():
     """Render the reset password page."""
-    st.title("📋 Weekly Activity Report")
+    st.title("搭 Weekly Activity Report")
     st.subheader("Enter Reset Code")
     
     if not st.session_state.get("reset_username"):
@@ -262,7 +262,7 @@ def render_admin_user_management():
         return
     
     st.title("User Management")
-    st.write("Manage user accounts")
+    st.write("Manage user accounts and their feature permissions.")
     
     # User creation form
     st.subheader("Create New User")
@@ -278,14 +278,14 @@ def render_admin_user_management():
             key="admin_new_role"
         )
         
-        submitted = st.form_submit_button("Create User")
+        submitted_create = st.form_submit_button("Create User")
         
-        if submitted:
+        if submitted_create: 
             # Validate input
             if not username or not password or not full_name or not email:
                 st.error("All fields are required.")
             else:
-                # Create new user
+                # Create new user (this will initialize feature_permissions)
                 user_data = user_auth.create_user(username, password, email, full_name, role)
                 if user_data:
                     st.success(f"User '{username}' created successfully!")
@@ -301,7 +301,7 @@ def render_admin_user_management():
         st.session_state.delete_confirmation_user = None
     
     # Get all users
-    users = user_auth.get_all_users()
+    users = user_auth.get_all_users() 
     
     if not users:
         st.info("No users found.")
@@ -311,9 +311,9 @@ def render_admin_user_management():
     st.subheader("Existing Users")
     
     # Display users in a table
-    user_data = []
+    user_data_display = [] 
     for user in users:
-        user_data.append({
+        user_data_display.append({
             "Username": user.get("username", ""),
             "Full Name": user.get("full_name", ""),
             "Email": user.get("email", ""),
@@ -322,121 +322,139 @@ def render_admin_user_management():
         })
     
     # Create a dataframe for display
-    if user_data:
-        df = pd.DataFrame(user_data)
+    if user_data_display:
+        df = pd.DataFrame(user_data_display)
         st.dataframe(df, use_container_width=True)
         
-        # Add action buttons for each user
-        st.subheader("User Actions")
+        st.subheader("User Actions & Permissions")
         
-        # Check if we're in edit mode
         if st.session_state.edit_user:
-            # Get the user to edit
-            edit_username = st.session_state.edit_user
-            user_to_edit = next((user for user in users if user.get("username") == edit_username), None)
+            edit_username_val = st.session_state.edit_user 
+            user_to_edit = user_auth.get_user(edit_username_val) 
             
             if user_to_edit:
-                st.write(f"### Edit User: {user_to_edit.get('full_name', '')}")
+                st.write(f"### Edit User: {user_to_edit.get('full_name', '')} ({user_to_edit.get('username')})")
                 
-                # Edit user form
-                with st.form("edit_user_form"):
-                    edit_full_name = st.text_input("Full Name", value=user_to_edit.get("full_name", ""))
-                    edit_email = st.text_input("Email", value=user_to_edit.get("email", ""))
+                with st.form(f"edit_user_form_{edit_username_val}"): 
+                    edit_full_name = st.text_input("Full Name", value=user_to_edit.get("full_name", ""), key=f"edit_fn_{edit_username_val}")
+                    edit_email = st.text_input("Email", value=user_to_edit.get("email", ""), key=f"edit_em_{edit_username_val}")
+                    
+                    current_role_index = list(user_auth.ROLES.keys()).index(user_to_edit.get("role", "team_member"))
                     edit_role = st.selectbox(
                         "Role",
                         options=list(user_auth.ROLES.keys()),
                         format_func=lambda x: user_auth.ROLES[x],
-                        index=list(user_auth.ROLES.keys()).index(user_to_edit.get("role", "team_member"))
+                        index=current_role_index,
+                        key=f"edit_role_{edit_username_val}"
                     )
                     
-                    # Password fields
-                    st.write("Leave password fields blank to keep current password")
-                    new_password = st.text_input("New Password", type="password")
-                    confirm_password = st.text_input("Confirm New Password", type="password")
+                    st.write("**Change Password (leave blank to keep current password)**")
+                    new_password = st.text_input("New Password", type="password", key=f"edit_pw_{edit_username_val}")
+                    confirm_password = st.text_input("Confirm New Password", type="password", key=f"edit_cpw_{edit_username_val}")
                     
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        update_btn = st.form_submit_button("Update User")
-                    with col2:
-                        cancel_btn = st.form_submit_button("Cancel")
+                    # Feature Permissions - only for non-admin users
+                    if user_to_edit.get("role") != "admin":
+                        st.subheader("Feature Permissions")
+                        st.write(f"Toggle features for {user_to_edit.get('full_name', '')}. (Admins always have all features enabled)")
+                        
+                        # Get current feature permissions for this user
+                        user_feature_permissions = user_to_edit.get("feature_permissions", {})
+                        
+                        # Create a temporary dictionary to hold the updated selections for the form submission
+                        current_feature_permissions_update = {}
+                        
+                        # Sort features alphabetically by their display label for consistent UI
+                        feature_keys_sorted = sorted(user_auth.AVAILABLE_FEATURES.keys(), key=lambda k: user_auth.AVAILABLE_FEATURES[k])
+
+                        num_features = len(feature_keys_sorted)
+                        cols = st.columns(2)  # Display in 2 columns for better layout
+                        
+                        for idx, feature_key in enumerate(feature_keys_sorted):
+                            feature_label = user_auth.AVAILABLE_FEATURES[feature_key]
+                            # Get the current value for the checkbox (True if not explicitly set)
+                            default_value = user_feature_permissions.get(feature_key, True)
+                            with cols[idx % 2]: # Distribute checkboxes across columns
+                                current_feature_permissions_update[feature_key] = st.checkbox(
+                                    feature_label, 
+                                    value=default_value, 
+                                    key=f"perm_{edit_username_val}_{feature_key}" # Unique key for each checkbox
+                                )
+                    else:
+                        st.info("Admins have all features enabled by default. Feature permissions cannot be changed for admin users.")
+                        # For admin users, we still need to pass their existing (all True) permissions
+                        # to the update function to ensure the field is preserved.
+                        current_feature_permissions_update = user_to_edit.get("feature_permissions", {})
+
+
+                    submit_update = st.form_submit_button("Update User") 
+                    cancel_edit = st.form_submit_button("Cancel") 
                     
-                    if update_btn:
-                        # Validate passwords if provided
-                        if new_password or confirm_password:
-                            if new_password != confirm_password:
-                                st.error("Passwords do not match.")
-                                return
-                        
-                        # Prepare updates
-                        updates = {
-                            "full_name": edit_full_name,
-                            "email": edit_email,
-                            "role": edit_role
-                        }
-                        
-                        # Add password if provided
-                        if new_password:
-                            updates["password"] = new_password
-                        
-                        # Update user
-                        if user_auth.update_user(edit_username, updates):
-                            st.success("User updated successfully!")
-                            st.session_state.edit_user = None
-                            st.rerun()
+                    if submit_update:
+                        if new_password and new_password != confirm_password:
+                            st.error("New passwords do not match.")
                         else:
-                            st.error("Failed to update user.")
+                            updates = {
+                                "full_name": edit_full_name,
+                                "email": edit_email,
+                                "role": edit_role,
+                            }
+                            if new_password:
+                                updates["password"] = new_password
+                            
+                            # Add feature permissions to updates if user is not admin
+                            # Or if it's an admin, pass their (all True) permissions to preserve the field
+                            updates["feature_permissions"] = current_feature_permissions_update
+                            
+                            if user_auth.update_user(edit_username_val, updates):
+                                st.success("User updated successfully!")
+                                st.session_state.edit_user = None
+                                st.rerun()
+                            else:
+                                st.error("Failed to update user.")
                     
-                    if cancel_btn:
+                    if cancel_edit:
                         st.session_state.edit_user = None
                         st.rerun()
             else:
-                st.error(f"User '{edit_username}' not found.")
-                st.session_state.edit_user = None
+                st.error(f"User '{st.session_state.edit_user}' not found for editing.")
+                st.session_state.edit_user = None 
                 st.rerun()
         else:
-            # Show user actions
-            for i, user in enumerate(users):
-                username = user.get("username", "")
-                full_name = user.get("full_name", "")
-                role = user_auth.ROLES.get(user.get("role", ""), "Unknown")
+            # Display list of users with action buttons
+            for i, user_obj in enumerate(users): 
+                username_val = user_obj.get("username", "") 
+                full_name_val = user_obj.get("full_name", "") 
+                role_val = user_auth.ROLES.get(user_obj.get("role", ""), "Unknown") 
                 
-                st.write(f"**{full_name}** ({username}) - *{role}*")
+                st.write(f"**{full_name_val}** ({username_val}) - *{role_val}*")
                 
-                # Can't delete admin user
-                if username != "admin":
-                    col1, col2 = st.columns(2)
-                    
-                    with col1:
-                        if st.button("Edit", key=f"edit_{i}"):
-                            st.session_state.edit_user = username
-                            st.rerun()
-                    
-                    with col2:
-                        # Show delete button or confirmation dialog
-                        if st.session_state.delete_confirmation_user == username:
-                            st.warning(f"Are you sure you want to delete user '{username}'?")
-                            confirm_col1, confirm_col2 = st.columns(2)
-                            
-                            with confirm_col1:
-                                # The key issue was here - the unique key for confirm buttons
-                                if st.button("Yes, Delete", key=f"confirm_{i}"):
-                                    success = user_auth.delete_user(username)
-                                    if success:
-                                        st.success(f"User {username} deleted successfully!")
+                action_cols = st.columns(2)
+                with action_cols[0]:
+                    if st.button("Edit", key=f"edit_btn_{i}_{username_val}"): 
+                        st.session_state.edit_user = username_val
+                        st.rerun()
+                
+                if username_val != "admin": # Admin user cannot be deleted
+                    with action_cols[1]:
+                        if st.session_state.delete_confirmation_user == username_val:
+                            st.warning(f"Are you sure you want to delete user '{username_val}'?")
+                            confirm_del_cols = st.columns(2)
+                            with confirm_del_cols[0]:
+                                if st.button("Yes, Delete", key=f"confirm_del_btn_{i}_{username_val}"): 
+                                    if user_auth.delete_user(username_val):
+                                        st.success(f"User {username_val} deleted successfully!")
                                         st.session_state.delete_confirmation_user = None
                                         st.rerun()
                                     else:
-                                        st.error(f"Failed to delete user {username}.")
-                            
-                            with confirm_col2:
-                                if st.button("Cancel", key=f"cancel_{i}"):
+                                        st.error(f"Failed to delete user {username_val}.")
+                            with confirm_del_cols[1]:
+                                if st.button("Cancel Delete", key=f"cancel_del_btn_{i}_{username_val}"): 
                                     st.session_state.delete_confirmation_user = None
                                     st.rerun()
                         else:
-                            if st.button("Delete", key=f"delete_{i}"):
-                                st.session_state.delete_confirmation_user = username
+                            if st.button("Delete", key=f"delete_btn_{i}_{username_val}", type="secondary"): 
+                                st.session_state.delete_confirmation_user = username_val
                                 st.rerun()
-                
                 st.divider()
 
 def check_authentication():
@@ -485,3 +503,4 @@ def check_authentication():
     # User is authenticated, render logout button in sidebar
     render_logout_button()
     return True
+
