@@ -555,8 +555,9 @@ Weekly Report System
     
     # Display email
     st.subheader("📧 Email Content")
-    st.text_area("Email Subject", email_subject, height=50)
-    st.text_area("Email Body", email_body, height=600)
+    # Added unique keys to prevent StreamlitAPIException
+    st.text_area("Email Subject", email_subject, height=50, key="email_summary_subject")
+    st.text_area("Email Body", email_body, height=600, key="email_summary_body")
     
     # Copy to clipboard option
     if st.button("📋 Copy Email Content"):
