@@ -1,6 +1,8 @@
 # components/auth.py
 """Authentication components for the Weekly Report app."""
 
+ALLOW_NEW_REGISTRATIONS = True  # Set to False to disable, True to enable
+
 import streamlit as st
 import pandas as pd
 # Import the whole module instead of individual functions
@@ -27,17 +29,25 @@ def render_login_page():
     
     # Links to registration and password reset
     st.write("---")
-    col1, col2 = st.columns(2)
     
-    with col1:
-        st.write("Don't have an account?")
-        if st.button("Register New Account"):
-            st.session_state.show_register = True
-            st.rerun()
-    
-    with col2:
+    # Conditionally show the registration link
+    if ALLOW_NEW_REGISTRATIONS:
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("Don't have an account?")
+            if st.button("Register New Account"):
+                st.session_state.show_register = True
+                st.rerun()
+        with col2:
+            st.write("Forgot your password?")
+            if st.button("Reset Password"):
+                st.session_state.show_forgot_password = True
+                st.rerun()
+    else:
+        # If registration is disabled, only show the "Forgot Password" option
+        # This will now be centered as it's the only item in this section
         st.write("Forgot your password?")
-        if st.button("Reset Password"):
+        if st.button("Reset Password", use_container_width=True): # Added use_container_width for better centering
             st.session_state.show_forgot_password = True
             st.rerun()
 
@@ -503,4 +513,3 @@ def check_authentication():
     # User is authenticated, render logout button in sidebar
     render_logout_button()
     return True
-
