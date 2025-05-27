@@ -1,7 +1,7 @@
 # components/auth.py
 """Authentication components for the Weekly Report app."""
 
-ALLOW_NEW_REGISTRATIONS = True  # Set to False to disable, True to enable
+ALLOW_NEW_REGISTRATIONS = False  # Set to False to disable, True to enable
 
 import streamlit as st
 import pandas as pd
