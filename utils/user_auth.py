@@ -44,20 +44,93 @@ AVAILABLE_FEATURES = {
     "Team Objectives": "Team Objectives",
     "Goal Dashboard": "Goal Dashboard",
     "OKR Management": "OKR Management",
-    "Import Objectives": "Import Objectives",
+    "Import Objectives": "Import Objectives", # Admin/Manager specific
 
     # Team Management Section
-    "User Management": "User Management (Admin Page)", # This is an admin feature page
+    "User Management": "User Management (Admin Page)", # Admin specific
     "Team Structure": "Team Structure",
     "1:1 Meetings": "1:1 Meetings",
 
     # Administration Section (specific pages)
     "User Profile": "User Profile", # Users can always access their own profile
-    "Project Data": "Project Data Management",
-    "Import Users": "Import Users", # Admin feature page
-    "Import Reports": "Import Reports", # Admin feature page
-    "System Settings": "System Settings", # Admin feature page
+    "Project Data": "Project Data Management", # Admin/Manager specific
+    "Import Users": "Import Users", # Admin specific
+    "Import Reports": "Import Reports", # Admin/Manager specific
+    "System Settings": "System Settings", # Admin specific
 }
+
+def get_default_feature_permissions_by_role(role):
+    """
+    Returns a dictionary of default feature permissions based on the user's role.
+    
+    Args:
+        role (str): The role of the user ("admin", "manager", "team_member").
+        
+    Returns:
+        dict: A dictionary where keys are feature names and values are booleans
+              indicating whether the feature is enabled by default for that role.
+    """
+    # Initialize all features to disabled by default, then enable based on role
+    default_permissions = {feature_key: False for feature_key in AVAILABLE_FEATURES.keys()}
+
+    if role == "admin":
+        # Admins have all features enabled
+        for feature_key in AVAILABLE_FEATURES.keys():
+            default_permissions[feature_key] = True
+    elif role == "manager":
+        # Managers have everything except specific admin import/data management features
+        for feature_key in AVAILABLE_FEATURES.keys():
+            # Enable everything by default for managers
+            default_permissions[feature_key] = True
+
+        # Explicitly disable features for managers as per your request
+        # (everything EXCEPT these features should be enabled)
+        manager_disabled_features = [
+            "Import Objectives",
+            "Import Users",
+            "Import Reports",
+            "Project Data Management",
+            "User Management", # User Management is typically admin-only
+            "System Settings" # System Settings is typically admin-only
+        ]
+        for feature_key in manager_disabled_features:
+            if feature_key in default_permissions: # Ensure the key exists
+                default_permissions[feature_key] = False
+
+    elif role == "team_member":
+        # Team members have a more restricted set of features as per your image
+        team_member_enabled_features = [
+            "Weekly Report",
+            "Past Reports",
+            "Report Templates",
+            "Report Analytics",
+            "AI Voice Assistant",
+            "Smart Suggestions",
+            "User Profile",
+            "Team Objectives", # Assuming this is enabled for team members
+            "Goal Dashboard", # Assuming this is enabled for team members
+            "OKR Management", # Assuming this is enabled for team members
+            "Team Structure", # Assuming this is enabled for team members
+            "1:1 Meetings", # Assuming this is enabled for team members
+            "Advanced Analytics", # As per your image for team member, this is enabled
+            "Batch Export" # As per your image for team member, this is enabled
+        ]
+        for feature_key in team_member_enabled_features:
+            if feature_key in default_permissions: # Ensure the key exists
+                default_permissions[feature_key] = True
+        
+        # Explicitly disable AI Intelligence features for team members
+        # (these are handled by role-based access in permissions.py, but for consistency in defaults)
+        ai_intelligence_features = [
+            "Team Health Dashboard",
+            "Predictive Intelligence",
+            "Executive Summary"
+        ]
+        for feature_key in ai_intelligence_features:
+            if feature_key in default_permissions:
+                default_permissions[feature_key] = False
+
+    return default_permissions
 
 
 def ensure_user_directory():
@@ -97,9 +170,8 @@ def create_user(username, password, email, full_name, role="team_member"):
     if os.path.exists(f"data/users/{username}.json"):
         return None
     
-    # Initialize feature_permissions: by default, all available features are enabled for a new user.
-    # The admin can then disable them.
-    initial_feature_permissions = {feature_key: True for feature_key in AVAILABLE_FEATURES.keys()}
+    # Get initial feature permissions based on the role
+    initial_feature_permissions = get_default_feature_permissions_by_role(role)
 
     # Create user record
     user_data = {
@@ -201,10 +273,11 @@ def get_user(username):
         
         # Ensure feature_permissions field exists and is up-to-date for older users or new features
         if "feature_permissions" not in user_data:
-            user_data["feature_permissions"] = {}
+            # If missing, initialize with default for their current role
+            user_data["feature_permissions"] = get_default_feature_permissions_by_role(user_data.get("role", "team_member"))
         
         # Add any new features that might have been added to AVAILABLE_FEATURES
-        # and ensure existing ones are present. Default to True (enabled).
+        # and ensure existing ones are present. Default to True (enabled) for new features.
         for feature_key in AVAILABLE_FEATURES.keys():
             if feature_key not in user_data["feature_permissions"]:
                 user_data["feature_permissions"][feature_key] = True
@@ -335,7 +408,6 @@ def generate_reset_code(username_or_email):
         with open(user_file, 'w') as f:
             json.dump(current_user_data, f, indent=2)
         
-        # Return the code - in a real app, you would email this instead of returning it
         return True, f"Reset code generated for {username}", reset_code
         
     except Exception as e:
