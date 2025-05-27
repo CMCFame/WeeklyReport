@@ -243,7 +243,6 @@ def prepare_summary_data(reports, focus_areas):
     if "Risk Factors" in focus_areas:
         risks = []
         
-        # High stress indicators
         for report in reports:
             content = ' '.join([
                 ' '.join(report.get('accomplishments', [])),
@@ -555,8 +554,8 @@ Weekly Report System
     
     # Display email
     st.subheader("📧 Email Content")
-    # Added unique keys to prevent StreamlitAPIException
-    st.text_area("Email Subject", email_subject, height=50, key="email_summary_subject")
+    # Changed height from 50 to 68 pixels to meet Streamlit's minimum requirement
+    st.text_area("Email Subject", email_subject, height=68, key="email_summary_subject")
     st.text_area("Email Body", email_body, height=600, key="email_summary_body")
     
     # Copy to clipboard option
@@ -673,10 +672,10 @@ def display_presentation_summary(summary, summary_data):
             st.markdown("")
     
     # Slide 6: Action Items
-    st.markdown("---")
-    st.markdown("# 💡 SLIDE 6: Action Items & Recommendations")
-    
     if summary['recommendations']:
+        st.markdown("---")
+        st.markdown("# 💡 SLIDE 6: Action Items & Recommendations")
+        
         for i, rec in enumerate(summary['recommendations'], 1):
             st.markdown(f"**{i}.** {rec}")
     
