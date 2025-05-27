@@ -107,13 +107,7 @@ def get_default_feature_permissions_by_role(role):
             "AI Voice Assistant",
             "Smart Suggestions",
             "User Profile",
-            "Team Objectives", # Assuming this is enabled for team members
-            "Goal Dashboard", # Assuming this is enabled for team members
-            "OKR Management", # Assuming this is enabled for team members
-            "Team Structure", # Assuming this is enabled for team members
             "1:1 Meetings", # Assuming this is enabled for team members
-            "Advanced Analytics", # As per your image for team member, this is enabled
-            "Batch Export" # As per your image for team member, this is enabled
         ]
         for feature_key in team_member_enabled_features:
             if feature_key in default_permissions: # Ensure the key exists
