@@ -43,6 +43,8 @@ def render_ai_voice_assistant():
         st.session_state.transcription_source = None
     if 'processing_started_this_run' not in st.session_state: # Flag to ensure pipeline runs only once per trigger
         st.session_state.processing_started_this_run = False
+    if 'audio_recorded_but_not_processed' not in st.session_state: # NEW: Track if audio is recorded but not yet processed
+        st.session_state.audio_recorded_but_not_processed = False
 
     # Voice recording section
     render_voice_recording_section()
@@ -123,6 +125,7 @@ def _run_audio_processing_pipeline(input_data, transcription_source):
         # Clear temporary audio bytes after processing
         st.session_state.audio_bytes_to_process = None
         st.session_state.transcription_source = None
+        st.session_state.audio_recorded_but_not_processed = False # NEW: Clear this flag
         st.rerun() # Always rerun to update UI with final state
 
 
@@ -171,56 +174,39 @@ def render_voice_recording_section():
         # Placeholder for dynamic recording/processing status message
         status_message_placeholder = st.empty()
         
-        # Display current processing status
+        # Display current status based on session state flags
         if st.session_state.is_processing_audio:
             status_message_placeholder.info(st.session_state.get('processing_status', "Processing..."))
+        elif st.session_state.audio_recorded_but_not_processed: # NEW: Status after recording, before processing
+            status_message_placeholder.success("🎵 Recording captured! Click 'Process Recording' below to continue.")
         elif st.session_state.get('processing_status') == "Processing complete.":
-            status_message_placeholder.success("🎵 Recording complete! Audio captured and processed.")
+            status_message_placeholder.success("✅ Processing complete! Review your structured report below.")
         elif st.session_state.get('processing_status') and "failed" in st.session_state.get('processing_status').lower():
             status_message_placeholder.error(st.session_state.get('processing_status'))
         else:
             status_message_placeholder.info("Click the microphone to start recording. Pause for 3 seconds to stop.")
         
-        # Audio recorder
-        # Disable the recorder if processing is active
+        # Audio recorder component
         audio_bytes = audio_recorder(
-            text="Click to start recording",
+            text="Click to start recording (button color changes when recording)", # Clarify text
             recording_color="#e74c3c", # Red when recording
             neutral_color="#34495e",   # Dark blue/gray when idle
             icon_name="microphone",
             icon_size="2x",
             pause_threshold=3.0,  # Pause for 3 seconds to stop
             sample_rate=16000,
-            # Disable recorder if processing is active
-            # This is a limitation of audio-recorder-streamlit, it doesn't have a disabled param.
-            # We'll rely on the button disabling and clear session state for re-recording.
+            # We don't disable the recorder itself, but manage the workflow with buttons
         )
         
         # This block executes AFTER recording is finished and audio_bytes is available
-        if audio_bytes:
-            # Display audio player
+        # Ensure we only process new audio_bytes once and not if a processing chain is active
+        if audio_bytes and not st.session_state.is_processing_audio and not st.session_state.get('audio_bytes_to_process_already_set', False):
             st.audio(audio_bytes, format="audio/wav")
-            
-            # Processing buttons
-            col_process1, col_process2 = st.columns(2)
-            
-            with col_process1:
-                if st.button("🔄 Record Again", use_container_width=True, key="record_again_btn"):
-                    clear_voice_session_data()
-                    st.rerun()
-            
-            with col_process2:
-                # Disable process button if already processing
-                if st.session_state.is_processing_audio:
-                    st.button("Processing...", disabled=True, use_container_width=True, key="process_disabled_btn")
-                else:
-                    if st.button("🚀 Process Recording", type="primary", use_container_width=True, key="process_recording_btn"):
-                        # Set processing flag and status, then rerun to show spinner
-                        st.session_state.is_processing_audio = True
-                        st.session_state.processing_status = "Initiating processing..."
-                        st.session_state.audio_bytes_to_process = audio_bytes # Store audio bytes for next run
-                        st.session_state.transcription_source = "audio" # Indicate source is audio
-                        st.rerun() # Trigger rerun to show spinner and start processing pipeline
+            st.session_state.audio_recorded_but_not_processed = True
+            st.session_state.audio_bytes_to_process = audio_bytes # Store audio bytes for next run
+            st.session_state.transcription_source = "audio" # Indicate source is audio
+            st.session_state.audio_bytes_to_process_already_set = True # Prevent re-entering this block immediately
+            st.rerun() # Trigger rerun to update status message and show processing buttons
         
     with col2:
         st.write("### Quick Stats")
@@ -238,10 +224,11 @@ def render_voice_recording_section():
         st.metric("Processed", stats['transcriptions_processed'])
         st.metric("Reports Created", stats['reports_created'])
         
-        # Recording quality indicator
-        if audio_bytes:
-            audio_size = len(audio_bytes)
-            duration_estimate = audio_size / 32000  
+        # Recording quality indicator (only if audio_bytes is available)
+        if st.session_state.get('audio_bytes_to_process'): # Check if there's audio stored for processing
+            audio_size = len(st.session_state.audio_bytes_to_process)
+            # Estimate duration based on sample_rate (16000 samples/sec * 2 bytes/sample for 16-bit audio = 32000 bytes/sec)
+            duration_estimate = audio_size / 32000 
             
             if duration_estimate > 30: 
                 st.success(f"✅ Good length ({duration_estimate:.1f} seconds)")
@@ -251,6 +238,22 @@ def render_voice_recording_section():
                 st.error(f"❌ Too short ({duration_estimate:.1f} seconds)")
             
             st.write(f"**Estimated duration:** ~{duration_estimate:.1f} seconds")
+
+    # Processing buttons should only show if audio_bytes_to_process is set and not currently processing
+    if st.session_state.get('audio_bytes_to_process') and not st.session_state.is_processing_audio:
+        col_process1, col_process2 = st.columns(2)
+        
+        with col_process1:
+            if st.button("🔄 Record Again", use_container_width=True, key="record_again_btn"):
+                clear_voice_session_data()
+                st.rerun()
+            
+        with col_process2:
+            if st.button("🚀 Process Recording", type="primary", use_container_width=True, key="process_recording_btn"):
+                st.session_state.is_processing_audio = True
+                st.session_state.processing_status = "Initiating processing..."
+                st.session_state.audio_recorded_but_not_processed = False # Reset flag when processing starts
+                st.rerun() # Trigger rerun to show spinner and start processing pipeline
 
 
 def render_transcription_review():
@@ -603,7 +606,9 @@ def clear_voice_session_data():
         'processing_status', # Clear the processing status message
         'audio_bytes_to_process', # Clear stored audio
         'transcription_source', # Clear source flag
-        'processing_started_this_run' # Reset the flag
+        'processing_started_this_run', # Reset the flag
+        'audio_recorded_but_not_processed', # Clear the new flag
+        'audio_bytes_to_process_already_set' # Clear this new flag
     ]
     
     for key in keys_to_clear:
@@ -675,4 +680,3 @@ def render_voice_analytics():
                 st.info("👍 Good voice assistant usage")
             else:
                 st.warning("💡 Consider reviewing voice recording tips for better results")
-
