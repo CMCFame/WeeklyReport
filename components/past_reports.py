@@ -1,4 +1,4 @@
-# components/past_reports.py - Updated with edit functionality
+# components/past_reports.py - Fixed with proper delete functionality
 """Past reports component for the Weekly Report app."""
 
 import streamlit as st
@@ -12,6 +12,11 @@ def render_past_reports():
     load them as templates, or delete them.
     """
     st.header('Past Reports')
+    
+    # Initialize delete confirmation state
+    if 'delete_confirmation' not in st.session_state:
+        st.session_state.delete_confirmation = {}
+    
     try:
         reports = file_ops.get_all_reports()
         
@@ -75,6 +80,8 @@ def render_report_details(report, index):
         index (int): Report index for unique keys
     """
     try:
+        report_id = report.get('id')
+        
         # Basic info
         st.write(f"**Name:** {report.get('name', 'Anonymous')}")
         st.write(f"**Reporting Week:** {report.get('reporting_week', 'Unknown')}")
@@ -142,64 +149,80 @@ def render_report_details(report, index):
         # Optional sections
         render_optional_report_sections(report)
         
-        # Action buttons
-        col1, col2, col3, col4 = st.columns(4)
+        # Check if this report is in delete confirmation state
+        is_delete_pending = st.session_state.delete_confirmation.get(report_id, False)
         
-        with col1:
-            if st.button('Use as Template', key=f"template_{index}", use_container_width=True):
-                try:
-                    # Create a deep copy of the report data
-                    report_copy = {}
-                    for key, value in report.items():
-                        if isinstance(value, list):
-                            report_copy[key] = value.copy() if value else []
-                        else:
-                            report_copy[key] = value
-                            
-                    # Clear the ID to ensure it's saved as a new report
-                    report_copy.pop('id', None)
-                    session.load_report_data(report_copy)
-                    st.success('Report loaded as template!')
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"Error loading template: {str(e)}")
-                    # Show more detailed debug info
-                    with st.expander("Debug Information"):
-                        debug_info = session.debug_report_data(report)
-                        for line in debug_info:
-                            st.text(line)
-        
-        with col2:
-            # PDF export button
-            render_report_export_button(report, button_text="Export as PDF", key_suffix=str(index))
-        
-        with col3:
-            # Add Edit button
-            if st.button('Edit Report', key=f"edit_{index}", use_container_width=True):
-                # Load report data into session state
-                session.load_report_data(report)
-                # Set a flag to indicate we're editing a report
-                st.session_state.editing_report = True
-                # Navigate to the weekly report page
-                st.session_state.nav_page = "Weekly Report"
-                st.session_state.nav_section = "reporting"
-                st.rerun()
-        
-        with col4:
-            if st.button('Delete Report', key=f"delete_{index}", use_container_width=True):
-                # Confirm delete dialog
-                st.warning("Are you sure you want to delete this report?")
-                confirm_col1, confirm_col2 = st.columns(2)
-                
-                with confirm_col1:
-                    if st.button("Yes, delete it", key=f"confirm_{index}"):
-                        if file_ops.delete_report(report.get('id')):
-                            st.success('Report deleted successfully!')
-                            st.rerun()
-                
-                with confirm_col2:
-                    if st.button("Cancel", key=f"cancel_{index}"):
+        if is_delete_pending:
+            # Show delete confirmation
+            st.warning("⚠️ Are you sure you want to delete this report? This action cannot be undone.")
+            
+            confirm_col1, confirm_col2 = st.columns(2)
+            
+            with confirm_col1:
+                if st.button("✅ Yes, Delete", key=f"confirm_delete_{index}", type="primary"):
+                    if file_ops.delete_report(report_id):
+                        st.success('Report deleted successfully!')
+                        # Clear the confirmation state
+                        st.session_state.delete_confirmation[report_id] = False
                         st.rerun()
+                    else:
+                        st.error("Failed to delete report.")
+            
+            with confirm_col2:
+                if st.button("❌ Cancel", key=f"cancel_delete_{index}"):
+                    # Clear the confirmation state
+                    st.session_state.delete_confirmation[report_id] = False
+                    st.rerun()
+        else:
+            # Show normal action buttons
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                if st.button('Use as Template', key=f"template_{index}", use_container_width=True):
+                    try:
+                        # Create a deep copy of the report data
+                        report_copy = {}
+                        for key, value in report.items():
+                            if isinstance(value, list):
+                                report_copy[key] = value.copy() if value else []
+                            else:
+                                report_copy[key] = value
+                                
+                        # Clear the ID to ensure it's saved as a new report
+                        report_copy.pop('id', None)
+                        session.load_report_data(report_copy)
+                        st.success('Report loaded as template!')
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"Error loading template: {str(e)}")
+                        # Show more detailed debug info
+                        with st.expander("Debug Information"):
+                            debug_info = session.debug_report_data(report)
+                            for line in debug_info:
+                                st.text(line)
+            
+            with col2:
+                # PDF export button
+                render_report_export_button(report, button_text="Export as PDF", key_suffix=str(index))
+            
+            with col3:
+                # Add Edit button
+                if st.button('Edit Report', key=f"edit_{index}", use_container_width=True):
+                    # Load report data into session state
+                    session.load_report_data(report)
+                    # Set a flag to indicate we're editing a report
+                    st.session_state.editing_report = True
+                    # Navigate to the weekly report page
+                    st.session_state.nav_page = "Weekly Report"
+                    st.session_state.nav_section = "reporting"
+                    st.rerun()
+            
+            with col4:
+                if st.button('Delete Report', key=f"delete_{index}", use_container_width=True):
+                    # Set the confirmation state for this report
+                    st.session_state.delete_confirmation[report_id] = True
+                    st.rerun()
+                    
     except Exception as e:
         st.error(f"Error rendering report details: {str(e)}")
 
