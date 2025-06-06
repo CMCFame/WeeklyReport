@@ -460,23 +460,52 @@ def calculate_report_readiness_score(report_data: Dict) -> Dict:
     max_score = 100
     feedback = []
     
+    # Safely get values with proper defaults
+    def safe_get_string(data, key, default=''):
+        """Safely get a string value from data, handling None values."""
+        value = data.get(key, default)
+        return str(value) if value is not None else default
+    
+    def safe_get_list(data, key, default=None):
+        """Safely get a list value from data, handling None values."""
+        if default is None:
+            default = []
+        value = data.get(key, default)
+        return value if isinstance(value, list) and value is not None else default
+    
+    def safe_join_list(items, default=''):
+        """Safely join a list of items, filtering out None values."""
+        if not items:
+            return default
+        # Filter out None values and convert to strings
+        safe_items = [str(item) for item in items if item is not None and str(item).strip()]
+        return ' '.join(safe_items)
+    
     # Check basic info (20 points)
-    if report_data.get('name'):
+    name = safe_get_string(report_data, 'name')
+    if name.strip():
         score += 10
     else:
         feedback.append("Add your name")
     
-    if report_data.get('reporting_week'):
+    reporting_week = safe_get_string(report_data, 'reporting_week')
+    if reporting_week.strip():
         score += 10
     else:
         feedback.append("Specify the reporting week")
     
     # Check current activities (30 points)
-    activities = report_data.get('current_activities', [])
+    activities = safe_get_list(report_data, 'current_activities')
     if activities:
         score += 15
-        # Quality check
-        detailed_activities = sum(1 for a in activities if len(a.get('description', '')) > 20)
+        # Quality check - safely get descriptions
+        detailed_activities = 0
+        for activity in activities:
+            if isinstance(activity, dict):
+                desc = safe_get_string(activity, 'description')
+                if len(desc) > 20:
+                    detailed_activities += 1
+        
         if detailed_activities >= len(activities) * 0.7:
             score += 15
         else:
@@ -485,21 +514,29 @@ def calculate_report_readiness_score(report_data: Dict) -> Dict:
         feedback.append("Add current activities")
     
     # Check accomplishments (25 points)
-    accomplishments = report_data.get('accomplishments', [])
-    if accomplishments and any(a.strip() for a in accomplishments):
-        score += 15
-        # Quality check
-        detailed_accomplishments = sum(1 for a in accomplishments if len(a.strip()) > 15)
-        if detailed_accomplishments >= 2:
-            score += 10
+    accomplishments = safe_get_list(report_data, 'accomplishments')
+    if accomplishments:
+        # Filter out None and empty accomplishments
+        valid_accomplishments = [str(a).strip() for a in accomplishments if a is not None and str(a).strip()]
+        if valid_accomplishments:
+            score += 15
+            # Quality check
+            detailed_accomplishments = sum(1 for a in valid_accomplishments if len(a) > 15)
+            if detailed_accomplishments >= 2:
+                score += 10
+            else:
+                feedback.append("Provide more detailed accomplishments")
         else:
-            feedback.append("Provide more detailed accomplishments")
+            feedback.append("Add accomplishments from last week")
     else:
         feedback.append("Add accomplishments from last week")
     
     # Check action items (15 points)
-    has_followups = any(f.strip() for f in report_data.get('followups', []))
-    has_nextsteps = any(n.strip() for n in report_data.get('nextsteps', []))
+    followups = safe_get_list(report_data, 'followups')
+    nextsteps = safe_get_list(report_data, 'nextsteps')
+    
+    has_followups = any(str(f).strip() for f in followups if f is not None)
+    has_nextsteps = any(str(n).strip() for n in nextsteps if n is not None)
     
     if has_followups:
         score += 8
@@ -509,20 +546,44 @@ def calculate_report_readiness_score(report_data: Dict) -> Dict:
     if not has_followups and not has_nextsteps:
         feedback.append("Add follow-ups or next steps")
     
-    # Quality bonus (10 points)
-    total_content = ' '.join([
-        str(report_data.get('name', '')),
-        ' '.join(a.get('description', '') for a in activities),
-        ' '.join(accomplishments),
-        report_data.get('challenges', ''),
-        ' '.join(report_data.get('followups', [])),
-        ' '.join(report_data.get('nextsteps', []))
-    ])
-    
-    if len(total_content.strip()) > 200:
-        score += 10
-    else:
-        feedback.append("Provide more detailed content overall")
+    # Quality bonus (10 points) - Fixed the problematic join operation
+    try:
+        content_parts = []
+        
+        # Add name
+        content_parts.append(name)
+        
+        # Add activity descriptions
+        for activity in activities:
+            if isinstance(activity, dict):
+                desc = safe_get_string(activity, 'description')
+                if desc.strip():
+                    content_parts.append(desc)
+        
+        # Add accomplishments
+        content_parts.append(safe_join_list(accomplishments))
+        
+        # Add challenges
+        challenges = safe_get_string(report_data, 'challenges')
+        if challenges.strip():
+            content_parts.append(challenges)
+        
+        # Add followups and next steps
+        content_parts.append(safe_join_list(followups))
+        content_parts.append(safe_join_list(nextsteps))
+        
+        # Join all content safely
+        total_content = ' '.join(part for part in content_parts if part and part.strip())
+        
+        if len(total_content.strip()) > 200:
+            score += 10
+        else:
+            feedback.append("Provide more detailed content overall")
+            
+    except Exception as e:
+        # If content analysis fails, just skip the bonus points
+        feedback.append("Content analysis unavailable")
+        logger.error(f"Content analysis error in readiness score: {e}")
     
     # Determine readiness level
     if score >= 90:

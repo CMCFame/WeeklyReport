@@ -36,40 +36,71 @@ def render_smart_suggestions_panel():
         render_suggestions_sidebar()
 
 def render_suggestions_sidebar():
-    """Render suggestions in the sidebar."""
+    """Render suggestions in the sidebar with improved error handling."""
     st.subheader("💡 Smart Suggestions")
     
-    # Get current report data for analysis
-    current_data = collect_form_data()
-    
-    # Calculate readiness score
-    readiness = calculate_report_readiness_score(current_data)
-    
-    # Display readiness score
-    score = readiness['score']
-    if score >= 90:
-        st.success(f"🌟 Excellent! ({score}/100)")
-    elif score >= 75:
-        st.info(f"👍 Good ({score}/100)")
-    elif score >= 60:
-        st.warning(f"📝 Fair ({score}/100)")
-    else:
-        st.error(f"📋 Needs work ({score}/100)")
-    
-    # Show specific feedback
-    if readiness['feedback']:
-        st.write("**Quick Improvements:**")
-        for feedback in readiness['feedback'][:3]:  # Show top 3
-            st.write(f"• {feedback}")
-    
-    # Section-specific suggestions
-    render_section_suggestions(current_data)
-    
-    # Historical insights
-    render_historical_insights()
-    
-    # Writing quality suggestions
-    render_writing_suggestions(current_data)
+    try:
+        # Get current report data for analysis with error handling
+        current_data = collect_form_data()
+        
+        # Validate that we have the minimum required data structure
+        if not isinstance(current_data, dict):
+            st.info("📊 Complete your report sections to get AI suggestions")
+            return
+        
+        # Calculate readiness score with error handling
+        try:
+            readiness = calculate_report_readiness_score(current_data)
+        except Exception as e:
+            st.error("⚠️ Unable to analyze report completeness")
+            st.info("This may be due to incomplete data. Try refreshing the page or starting a new report.")
+            return
+        
+        # Display readiness score
+        score = readiness.get('score', 0)
+        if score >= 90:
+            st.success(f"🌟 Excellent! ({score}/100)")
+        elif score >= 75:
+            st.info(f"👍 Good ({score}/100)")
+        elif score >= 60:
+            st.warning(f"📝 Fair ({score}/100)")
+        else:
+            st.error(f"📋 Needs work ({score}/100)")
+        
+        # Show specific feedback
+        feedback = readiness.get('feedback', [])
+        if feedback:
+            st.write("**Quick Improvements:**")
+            for feedback_item in feedback[:3]:  # Show top 3
+                if feedback_item:  # Ensure feedback item is not None
+                    st.write(f"• {feedback_item}")
+        
+        # Section-specific suggestions with error handling
+        try:
+            render_section_suggestions(current_data)
+        except Exception as e:
+            st.info("💡 Section suggestions temporarily unavailable")
+        
+        # Historical insights with error handling
+        try:
+            render_historical_insights()
+        except Exception as e:
+            st.info("📈 Historical insights temporarily unavailable")
+        
+        # Writing quality suggestions with error handling
+        try:
+            render_writing_suggestions(current_data)
+        except Exception as e:
+            st.info("✍️ Writing suggestions temporarily unavailable")
+            
+    except Exception as e:
+        # Fallback if everything fails
+        st.error("⚠️ Smart suggestions temporarily unavailable")
+        st.info("Try refreshing the page or contact support if the problem persists.")
+        
+        # Optionally show error details in debug mode
+        if st.session_state.get("debug_mode", False):
+            st.exception(e)
 
 def render_section_suggestions(current_data):
     """Render suggestions for specific sections."""
