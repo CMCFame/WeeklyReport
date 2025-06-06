@@ -26,6 +26,7 @@ from utils.user_auth import create_admin_if_needed
 from utils.csv_utils import ensure_project_data_file
 from utils.team_utils import ensure_teams_directory
 from utils.meeting_utils import ensure_meetings_directory
+from utils.session_cleanup import render_session_diagnostics, clean_session_state, validate_session_state
 
 # Import component modules
 from components.user_info import render_user_info
@@ -295,6 +296,9 @@ def render_project_data_page():
 
 def render_weekly_report_page():
     """Render the main weekly report form with modular sections."""
+    # Add session diagnostics to sidebar (temporary)
+    render_session_diagnostics()
+    
     # Check if we're in edit mode
     is_editing = st.session_state.get('editing_report', False)
     
@@ -309,15 +313,43 @@ def render_weekly_report_page():
     # User Information Section (always visible)
     render_user_info()
     
+    # Add session state validation before AI suggestions
+    validation_issues = validate_session_state()
+    if validation_issues:
+        st.warning(f"⚠️ Session state issues detected: {', '.join(validation_issues[:3])}")
+        if st.button("🔧 Fix Session State Issues"):
+            if clean_session_state():
+                st.success("✅ Session state fixed!")
+                st.rerun()
+            else:
+                st.error("❌ Failed to fix session state")
+    
     # AI Smart Suggestions Panel (NEW) - Only show if user is actively working
-    render_smart_suggestions_panel()
+    try:
+        render_smart_suggestions_panel()
+    except Exception as e:
+        st.error("⚠️ Smart suggestions temporarily unavailable")
+        st.info("This may be due to data format issues. Try cleaning the session state above.")
+        
+        # Show debug info
+        with st.expander("🔍 Debug Information"):
+            st.write(f"Error: {str(e)}")
+            if st.button("🧹 Clean and Retry"):
+                if clean_session_state():
+                    st.rerun()
     
     # Section Selector - compact multiselect at the top
     render_section_selector()
     
-    # Progress bar
-    completion_percentage = calculate_completion_percentage()
-    st.progress(completion_percentage / 100)
+    # Progress bar with error handling
+    try:
+        completion_percentage = calculate_completion_percentage()
+        st.progress(completion_percentage / 100)
+    except Exception as e:
+        st.warning("⚠️ Unable to calculate completion percentage")
+        if st.button("🔧 Fix Progress Calculation"):
+            if clean_session_state():
+                st.rerun()
     
     # Render each section based on toggle state
     if st.session_state.get('show_current_activities', True):

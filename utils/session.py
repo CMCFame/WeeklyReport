@@ -221,6 +221,16 @@ def collect_form_data():
         cleaned = []
         for activity in activities_list:
             if isinstance(activity, dict) and activity.get('description'):
+                # Safely convert progress to int
+                def safe_int_conversion(value, default=50):
+                    """Safely convert value to int, handling empty strings and None."""
+                    if value is None or value == '':
+                        return default
+                    try:
+                        return int(float(value))  # Convert via float first to handle decimal strings
+                    except (ValueError, TypeError):
+                        return default
+                
                 # Ensure all required fields exist with safe defaults
                 cleaned_activity = {
                     'description': str(activity.get('description', '')),
@@ -228,12 +238,16 @@ def collect_form_data():
                     'milestone': str(activity.get('milestone', '')),
                     'priority': str(activity.get('priority', 'Medium')),
                     'status': str(activity.get('status', 'In Progress')),
-                    'progress': int(activity.get('progress', 50)),
+                    'progress': safe_int_conversion(activity.get('progress', 50)),
                 }
                 # Add any additional fields that might exist
                 for key, value in activity.items():
                     if key not in cleaned_activity and value is not None:
-                        cleaned_activity[key] = value
+                        if key in ['has_deadline', 'is_recurring']:
+                            # Boolean fields
+                            cleaned_activity[key] = bool(value)
+                        else:
+                            cleaned_activity[key] = str(value) if value != '' else ''
                 cleaned.append(cleaned_activity)
         return cleaned
     
@@ -257,6 +271,7 @@ def collect_form_data():
     }
     
     # Add optional sections if enabled
+    from utils.constants import OPTIONAL_SECTIONS
     for section in OPTIONAL_SECTIONS:
         section_key = section['key']
         content_key = section['content_key']

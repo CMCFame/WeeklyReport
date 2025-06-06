@@ -161,18 +161,37 @@ class ReportPDF(FPDF):
         self.multi_cell(remaining_width, 5, text)
 
 def export_report_to_pdf(report_data):
-    """Export a report to PDF.
-    
-    Args:
-        report_data (dict): Report data to export
-        
-    Returns:
-        str: Path to the generated PDF file
-    """
+    """Export a report to PDF with proper unicode handling."""
     try:
         # Ensure report_data is a dictionary
         if not isinstance(report_data, dict):
             report_data = {}
+        
+        # Helper function to clean text for PDF output
+        def clean_text_for_pdf(text):
+            """Clean text to remove problematic unicode characters."""
+            if not isinstance(text, str):
+                text = str(text)
+            
+            # Replace problematic unicode characters
+            replacements = {
+                '\u2019': "'",  # Right single quotation mark
+                '\u2018': "'",  # Left single quotation mark
+                '\u201c': '"',  # Left double quotation mark
+                '\u201d': '"',  # Right double quotation mark
+                '\u2013': '-',  # En dash
+                '\u2014': '--', # Em dash
+                '\u2026': '...', # Horizontal ellipsis
+                '\u00a0': ' ',  # Non-breaking space
+            }
+            
+            for old_char, new_char in replacements.items():
+                text = text.replace(old_char, new_char)
+            
+            # Remove any remaining non-ASCII characters
+            text = text.encode('ascii', 'ignore').decode('ascii')
+            
+            return text
             
         # Create a temporary directory to store the PDF
         temp_dir = tempfile.mkdtemp()
@@ -185,8 +204,13 @@ def export_report_to_pdf(report_data):
         
         # Report metadata (removed duplicate header)
         pdf.set_font('Arial', '', 12)
-        pdf.cell(0, 10, f"Name: {report_data.get('name', 'Anonymous')}", 0, 1)
-        pdf.cell(0, 10, f"Week: {report_data.get('reporting_week', 'Unknown')}", 0, 1)
+        
+        # Clean all text fields
+        clean_name = clean_text_for_pdf(report_data.get('name', 'Anonymous'))
+        clean_week = clean_text_for_pdf(report_data.get('reporting_week', 'Unknown'))
+        
+        pdf.cell(0, 10, f"Name: {clean_name}", 0, 1)
+        pdf.cell(0, 10, f"Week: {clean_week}", 0, 1)
         
         # Safely extract timestamp - fix potential index error
         timestamp = report_data.get('timestamp', '')
@@ -206,19 +230,23 @@ def export_report_to_pdf(report_data):
                 if not isinstance(activity, dict):  # Skip if not a dictionary
                     continue
                     
-                activity_description = activity.get('description', 'No description')
+                activity_description = clean_text_for_pdf(activity.get('description', 'No description'))
                 pdf.section_title(activity_description)
                 
                 # Project and milestone
-                project_text = f"{activity.get('project', 'No project')}"
+                project_text = clean_text_for_pdf(activity.get('project', 'No project'))
                 if activity.get('milestone'):
-                    project_text += f" / {activity.get('milestone')}"
+                    project_text += f" / {clean_text_for_pdf(activity.get('milestone'))}"
                 pdf.add_text_with_label("Project:", project_text)
                 
                 # Status and priority
-                status_line = f"Status: {activity.get('status', 'Unknown')} | Priority: {activity.get('priority', 'Medium')}"
-                if activity.get('deadline'):
-                    status_line += f" | Deadline: {activity.get('deadline')}"
+                status = clean_text_for_pdf(activity.get('status', 'Unknown'))
+                priority = clean_text_for_pdf(activity.get('priority', 'Medium'))
+                deadline = clean_text_for_pdf(activity.get('deadline', ''))
+                
+                status_line = f"Status: {status} | Priority: {priority}"
+                if deadline:
+                    status_line += f" | Deadline: {deadline}"
                 
                 # Use multi_cell instead of cell for status_line to enable wrapping
                 pdf.multi_cell(0, 5, status_line, 0, 'L')
@@ -232,10 +260,13 @@ def export_report_to_pdf(report_data):
                 pdf.add_progress_bar(progress)
                 
                 # Customer and billable
-                if activity.get('customer'):
-                    pdf.cell(0, 5, f"Customer: {activity.get('customer')}", 0, 1)
-                if activity.get('billable'):
-                    pdf.cell(0, 5, f"Billable: {activity.get('billable')}", 0, 1)
+                customer = clean_text_for_pdf(activity.get('customer', ''))
+                billable = clean_text_for_pdf(activity.get('billable', ''))
+                
+                if customer:
+                    pdf.cell(0, 5, f"Customer: {customer}", 0, 1)
+                if billable:
+                    pdf.cell(0, 5, f"Billable: {billable}", 0, 1)
                     
                 pdf.ln(5)
         
@@ -248,19 +279,22 @@ def export_report_to_pdf(report_data):
                 if not isinstance(activity, dict):  # Skip if not a dictionary
                     continue
                     
-                activity_description = activity.get('description', 'No description')
+                activity_description = clean_text_for_pdf(activity.get('description', 'No description'))
                 pdf.section_title(activity_description)
                 
                 # Project and milestone
-                project_text = f"{activity.get('project', 'No project')}"
+                project_text = clean_text_for_pdf(activity.get('project', 'No project'))
                 if activity.get('milestone'):
-                    project_text += f" / {activity.get('milestone')}"
+                    project_text += f" / {clean_text_for_pdf(activity.get('milestone'))}"
                 pdf.add_text_with_label("Project:", project_text)
                 
                 # Priority and start date - use multi_cell for better text wrapping
-                pdf.multi_cell(0, 5, f"Priority: {activity.get('priority', 'Medium')}", 0, 'L')
-                if activity.get('expected_start'):
-                    pdf.multi_cell(0, 5, f"Expected Start: {activity.get('expected_start')}", 0, 'L')
+                priority = clean_text_for_pdf(activity.get('priority', 'Medium'))
+                expected_start = clean_text_for_pdf(activity.get('expected_start', ''))
+                
+                pdf.multi_cell(0, 5, f"Priority: {priority}", 0, 'L')
+                if expected_start:
+                    pdf.multi_cell(0, 5, f"Expected Start: {expected_start}", 0, 'L')
                     
                 pdf.ln(5)
         
@@ -283,6 +317,7 @@ def export_report_to_pdf(report_data):
                     except:
                         accomplishment_text = accomplishment
                         
+                    accomplishment_text = clean_text_for_pdf(accomplishment_text)
                     if accomplishment_text and accomplishment_text.strip().lower() != "nan":  # Skip empty strings or "nan"
                         pdf.add_list_item(accomplishment_text)
             
@@ -314,6 +349,7 @@ def export_report_to_pdf(report_data):
                         except:
                             followup_text = followup
                             
+                        followup_text = clean_text_for_pdf(followup_text)
                         if followup_text and followup_text.strip().lower() != "nan":  # Skip empty strings or "nan"
                             pdf.add_list_item(followup_text)
                 
@@ -337,6 +373,7 @@ def export_report_to_pdf(report_data):
                         except:
                             nextstep_text = nextstep
                             
+                        nextstep_text = clean_text_for_pdf(nextstep_text)
                         if nextstep_text and nextstep_text.strip().lower() != "nan":  # Skip empty strings or "nan"
                             pdf.add_list_item(nextstep_text)
                 
@@ -357,8 +394,9 @@ def export_report_to_pdf(report_data):
                 # Check if the value is valid
                 value = report_data[key]
                 if value and isinstance(value, str) and value.strip().lower() != 'nan':
+                    clean_value = clean_text_for_pdf(value)
                     pdf.chapter_title(section['title'])
-                    pdf.chapter_body(value)
+                    pdf.chapter_body(clean_value)
                     pdf.ln(5)
         
         # Output the PDF to a file
