@@ -83,6 +83,8 @@ def render_weekly_report_analytics():
     with tab4:
         render_concerns_view(filtered_reports)
 
+# En components/weekly_report_analytics.py
+
 def render_summary_metrics(reports):
     """Render summary metrics for the filtered reports.
     
@@ -106,12 +108,23 @@ def render_summary_metrics(reports):
         status = activity.get('status', 'Unknown')
         status_counts[status] = status_counts.get(status, 0) + 1
     
-    # Calculate average completion percentage across activities
+    # --- INICIO DE LA CORRECCIÓN ---
+    # Calculate average completion percentage across activities safely
     if all_current_activities:
-        avg_completion = sum(activity.get('progress', 0) for activity in all_current_activities) / len(all_current_activities)
+        progress_values = []
+        for activity in all_current_activities:
+            try:
+                # Safely convert progress to a number, handling strings like "50" or "50.0"
+                progress_values.append(int(float(activity.get('progress', 0))))
+            except (ValueError, TypeError):
+                # If conversion fails, default to 0
+                progress_values.append(0)
+        
+        avg_completion = sum(progress_values) / len(all_current_activities)
     else:
         avg_completion = 0
-    
+    # --- FIN DE LA CORRECCIÓN ---
+
     # Calculate unique projects
     unique_projects = set()
     for activity in all_current_activities:
@@ -144,8 +157,10 @@ def render_summary_metrics(reports):
         st.metric("High Priority Activities", at_risk)
         
         # Show a completion indicator
+        # FIX: Check if total_activities is zero before division
+        completion_delta = f"{status_counts.get('Completed', 0)/total_activities*100:.1f}%" if total_activities > 0 else "0%"
         st.metric("Completed Activities", status_counts.get('Completed', 0), 
-                  delta=f"{status_counts.get('Completed', 0)/total_activities*100:.1f}%" if total_activities else "0%")
+                  delta=completion_delta)
 
 def render_team_activity_view(reports):
     """Render team activity analysis view.
