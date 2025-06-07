@@ -134,6 +134,14 @@ def process_activity_data(reports):
         
         # Process current activities
         for activity in report.get('current_activities', []):
+            # --- INICIO DE LA CORRECCIÓN ---
+            # Safely convert progress to an integer
+            try:
+                progress_val = int(float(activity.get('progress', 0)))
+            except (ValueError, TypeError):
+                progress_val = 0
+            # --- FIN DE LA CORRECCIÓN ---
+            
             activities.append({
                 'team_member': name,
                 'date': report_date,
@@ -143,7 +151,7 @@ def process_activity_data(reports):
                 'milestone': activity.get('milestone', ''),
                 'status': activity.get('status', 'Unknown'),
                 'priority': activity.get('priority', 'Medium'),
-                'progress': activity.get('progress', 0),
+                'progress': progress_val, # Usar el valor numérico limpio
                 'description': activity.get('description', '')
             })
         

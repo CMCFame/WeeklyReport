@@ -202,11 +202,20 @@ def render_team_activity_view(reports):
             priority = activity.get('priority', 'Unknown')
             priority_counts[priority] = priority_counts.get(priority, 0) + 1
         
-        # Calculate average progress
+        # --- INICIO DE LA CORRECCIÓN ---
+        # Calculate average progress safely
         if current_activities:
-            avg_progress = sum(activity.get('progress', 0) for activity in current_activities) / len(current_activities)
+            progress_values = []
+            for activity in current_activities:
+                try:
+                    # Safely convert progress to a number
+                    progress_values.append(int(float(activity.get('progress', 0))))
+                except (ValueError, TypeError):
+                    progress_values.append(0) # Default to 0 if conversion fails
+            avg_progress = sum(progress_values) / len(current_activities)
         else:
             avg_progress = 0
+        # --- FIN DE LA CORRECCIÓN ---
         
         # Get unique projects
         projects = set()
@@ -291,10 +300,17 @@ def render_team_activity_view(reports):
     st.subheader("Team Activity Details")
     
     # Add calculated columns for visualization
-    df["Completion Rate"] = df["Completed"] / df["Current Activities"] * 100
-    df["Completion Rate"] = df["Completion Rate"].replace([np.inf, -np.inf, np.nan], 0)
-    df["Completion Rate"] = df["Completion Rate"].round(1).astype(str) + '%'
-    
+    # FIX: Ensure "Current Activities" is not zero before division
+    if "Current Activities" in df.columns and "Completed" in df.columns:
+        df["Completion Rate"] = df.apply(
+            lambda row: (row["Completed"] / row["Current Activities"] * 100) if row["Current Activities"] > 0 else 0,
+            axis=1
+        )
+        df["Completion Rate"] = df["Completion Rate"].round(1).astype(str) + '%'
+    else:
+        df["Completion Rate"] = "0.0%"
+
+
     # Select columns for display
     display_columns = [
         "Team Member", "Current Activities", "Upcoming Activities", 
