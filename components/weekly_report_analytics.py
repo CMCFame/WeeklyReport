@@ -320,6 +320,8 @@ def render_team_activity_view(reports):
     # Display table
     st.dataframe(df[display_columns], use_container_width=True)
 
+# En components/weekly_report_analytics.py
+
 def render_project_status_view(reports):
     """Render project status analysis view.
     
@@ -359,12 +361,21 @@ def render_project_status_view(reports):
             status = activity.get('status', 'Unknown')
             status_counts[status] = status_counts.get(status, 0) + 1
         
-        # Calculate average progress
+        # --- INICIO DE LA CORRECCIÓN ---
+        # Calculate average progress safely
         if activities:
-            avg_progress = sum(activity.get('progress', 0) for activity in activities) / len(activities)
+            progress_values = []
+            for activity in activities:
+                try:
+                    # Safely convert progress to a number
+                    progress_values.append(int(float(activity.get('progress', 0))))
+                except (ValueError, TypeError):
+                    progress_values.append(0) # Default to 0 on failure
+            avg_progress = sum(progress_values) / len(activities)
         else:
             avg_progress = 0
-        
+        # --- FIN DE LA CORRECCIÓN ---
+
         # Count team members
         team_members = set()
         for activity in activities:
@@ -426,63 +437,72 @@ def render_project_status_view(reports):
     
     # Allow selecting a project for detailed status
     if len(project_activities) > 1:
-        selected_project = st.selectbox(
-            "Select Project",
-            options=list(project_activities.keys())
-        )
-        selected_activities = project_activities[selected_project]
-    else:
+        # Check if project_activities is not empty before creating selectbox
+        if list(project_activities.keys()):
+            selected_project = st.selectbox(
+                "Select Project",
+                options=list(project_activities.keys())
+            )
+            selected_activities = project_activities[selected_project]
+        else:
+            selected_project = None
+            selected_activities = []
+    elif project_activities:
         # If only one project, use that one
         selected_project = next(iter(project_activities.keys()))
         selected_activities = project_activities[selected_project]
-    
-    # Create status data
-    status_df = pd.DataFrame([
-        {"Status": status, "Count": count}
-        for status, count in {
-            'Completed': sum(1 for a in selected_activities if a.get('status') == 'Completed'),
-            'In Progress': sum(1 for a in selected_activities if a.get('status') == 'In Progress'),
-            'Blocked': sum(1 for a in selected_activities if a.get('status') == 'Blocked'),
-            'Not Started': sum(1 for a in selected_activities if a.get('status') == 'Not Started')
-        }.items()
-    ])
-    
-    # Create pie chart for status distribution
-    fig = px.pie(
-        status_df, 
-        values="Count", 
-        names="Status",
-        title=f"Status Distribution for {selected_project}",
-        color="Status",
-        color_discrete_map={
-            'Completed': '#28a745',
-            'In Progress': '#17a2b8',
-            'Blocked': '#dc3545',
-            'Not Started': '#6c757d'
-        }
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
-    
-    # Show activities for the selected project
-    st.subheader(f"Activities for {selected_project}")
-    
-    # Create activity dataframe
-    activity_df = pd.DataFrame([
-        {
-            "Description": a.get('description', 'No description'),
-            "Status": a.get('status', 'Unknown'),
-            "Progress": a.get('progress', 0),
-            "Priority": a.get('priority', 'Medium'),
-            "Team Member": a.get('report_name', 'Unknown'),
-            "Milestone": a.get('milestone', 'None'),
-            "Deadline": a.get('deadline', 'Not set')
-        }
-        for a in selected_activities
-    ])
-    
-    # Display activities
-    st.dataframe(activity_df, use_container_width=True)
+    else:
+        selected_project = None
+        selected_activities = []
+
+    if selected_project:
+        # Create status data
+        status_df = pd.DataFrame([
+            {"Status": status, "Count": count}
+            for status, count in {
+                'Completed': sum(1 for a in selected_activities if a.get('status') == 'Completed'),
+                'In Progress': sum(1 for a in selected_activities if a.get('status') == 'In Progress'),
+                'Blocked': sum(1 for a in selected_activities if a.get('status') == 'Blocked'),
+                'Not Started': sum(1 for a in selected_activities if a.get('status') == 'Not Started')
+            }.items()
+        ])
+        
+        # Create pie chart for status distribution
+        fig = px.pie(
+            status_df, 
+            values="Count", 
+            names="Status",
+            title=f"Status Distribution for {selected_project}",
+            color="Status",
+            color_discrete_map={
+                'Completed': '#28a745',
+                'In Progress': '#17a2b8',
+                'Blocked': '#dc3545',
+                'Not Started': '#6c757d'
+            }
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Show activities for the selected project
+        st.subheader(f"Activities for {selected_project}")
+        
+        # Create activity dataframe
+        activity_df = pd.DataFrame([
+            {
+                "Description": a.get('description', 'No description'),
+                "Status": a.get('status', 'Unknown'),
+                "Progress": a.get('progress', 0),
+                "Priority": a.get('priority', 'Medium'),
+                "Team Member": a.get('report_name', 'Unknown'),
+                "Milestone": a.get('milestone', 'None'),
+                "Deadline": a.get('deadline', 'Not set')
+            }
+            for a in selected_activities
+        ])
+        
+        # Display activities
+        st.dataframe(activity_df, use_container_width=True)
 
 def render_accomplishments_view(reports):
     """Render accomplishments analysis view.
