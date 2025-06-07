@@ -283,7 +283,7 @@ def collect_form_data():
     return data
 
 def load_report_data(report_data):
-    """Load report data into session state with improved error handling."""
+    """Load report data into session state with improved error handling and section detection."""
     if not report_data:
         st.error("No report data to load")
         return
@@ -317,6 +317,37 @@ def load_report_data(report_data):
             """Safely get string data."""
             value = data.get(key, default)
             return str(value) if value is not None else default
+        
+        # Helper function to check if a list has meaningful content
+        def has_meaningful_content(items):
+            """Check if a list contains meaningful content."""
+            if not items or not isinstance(items, list):
+                return False
+            
+            for item in items:
+                if item is None:
+                    continue
+                
+                # Handle JSON strings in items
+                text_content = ""
+                if isinstance(item, str):
+                    try:
+                        import json
+                        json_data = json.loads(item)
+                        if isinstance(json_data, dict) and 'text' in json_data:
+                            text_content = json_data['text']
+                        else:
+                            text_content = item
+                    except (json.JSONDecodeError, TypeError):
+                        text_content = item
+                else:
+                    text_content = str(item)
+                
+                # Check if the text content is meaningful
+                if text_content and text_content.strip() and text_content.strip().lower() not in ['nan', 'none', '']:
+                    return True
+            
+            return False
         
         # Load basic user information with safe defaults
         st.session_state.name = safe_get_string(report_data, 'name', '')
@@ -415,6 +446,33 @@ def load_report_data(report_data):
             # Toggle section visibility based on content
             st.session_state[section['key']] = bool(content.strip())
         
+        # **IMPORTANT: Set section toggles based on actual content**
+        # This is the key fix - automatically enable sections that have content
+        
+        # Enable Current Activities if there are any activities with descriptions
+        has_current_activities = any(
+            activity.get('description', '').strip() 
+            for activity in st.session_state.current_activities 
+            if isinstance(activity, dict)
+        )
+        st.session_state.show_current_activities = has_current_activities
+        
+        # Enable Upcoming Activities if there are any upcoming activities with descriptions
+        has_upcoming_activities = any(
+            activity.get('description', '').strip() 
+            for activity in st.session_state.upcoming_activities 
+            if isinstance(activity, dict)
+        )
+        st.session_state.show_upcoming_activities = has_upcoming_activities
+        
+        # Enable Accomplishments if there are meaningful accomplishments
+        st.session_state.show_accomplishments = has_meaningful_content(st.session_state.accomplishments)
+        
+        # Enable Action Items if there are meaningful followups or nextsteps
+        has_followups = has_meaningful_content(st.session_state.followups)
+        has_nextsteps = has_meaningful_content(st.session_state.nextsteps)
+        st.session_state.show_action_items = has_followups or has_nextsteps
+        
         # Set report ID
         st.session_state.report_id = report_data.get('id')
         
@@ -423,6 +481,25 @@ def load_report_data(report_data):
             st.session_state.original_timestamp = report_data.get('timestamp')
         
         st.success("Report data loaded successfully!")
+        
+        # Show which sections were enabled
+        enabled_sections = []
+        if st.session_state.show_current_activities:
+            enabled_sections.append("Current Activities")
+        if st.session_state.show_upcoming_activities:
+            enabled_sections.append("Upcoming Activities")
+        if st.session_state.show_accomplishments:
+            enabled_sections.append("Accomplishments")
+        if st.session_state.show_action_items:
+            enabled_sections.append("Action Items")
+        
+        # Check optional sections
+        for section in OPTIONAL_SECTIONS:
+            if st.session_state.get(section['key'], False):
+                enabled_sections.append(section['label'])
+        
+        if enabled_sections:
+            st.info(f"Enabled sections: {', '.join(enabled_sections)}")
         
     except Exception as e:
         st.error(f"Error loading report data: {str(e)}")
@@ -440,6 +517,12 @@ def load_report_data(report_data):
         for section in OPTIONAL_SECTIONS:
             st.session_state[section['key']] = False
             st.session_state[section['content_key']] = ''
+        
+        # Set default section visibility (at least current activities)
+        st.session_state.show_current_activities = True
+        st.session_state.show_upcoming_activities = False
+        st.session_state.show_accomplishments = False
+        st.session_state.show_action_items = False
         
         import traceback
         st.error(f"Detailed error: {traceback.format_exc()}")
