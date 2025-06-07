@@ -1,4 +1,4 @@
-# components/navigation.py - Updated with Feedback Dashboard
+# components/navigation.py
 
 """Navigation component for the Weekly Report app."""
 
@@ -56,17 +56,12 @@ def render_navigation():
     # These additions are still subject to check_section_access which now includes user-specific flags
     if user_role == "admin":
         sections["team"]["pages"].insert(0, "User Management")
-        sections["team"]["pages"].insert(1, "Feedback Dashboard")  # NEW: Add feedback dashboard for admins
         sections["admin"]["pages"].extend(["Import Users", "Import Reports", "System Settings"])
         sections["goals"]["pages"].append("Import Objectives")
     elif user_role == "manager":
         # Check permissions for each page before adding to manager's view
         if check_section_access("User Management", user_role, username):
             sections["team"]["pages"].insert(0, "User Management")
-        
-        # NEW: Always add Feedback Dashboard for managers
-        sections["team"]["pages"].insert(-1 if "User Management" in sections["team"]["pages"] else 0, "Feedback Dashboard")
-        
         if check_section_access("Import Reports", user_role, username):
             sections["admin"]["pages"].append("Import Reports")
         if check_section_access("Import Objectives", user_role, username):
@@ -146,7 +141,7 @@ def set_page(page_name):
         "AI Voice Assistant": "ai", "Smart Suggestions": "ai",
         "Team Health Dashboard": "intelligence", "Predictive Intelligence": "intelligence", "Executive Summary": "intelligence",
         "Team Objectives": "goals", "Goal Dashboard": "goals", "OKR Management": "goals", "Import Objectives": "goals",
-        "User Management": "team", "Team Structure": "team", "1:1 Meetings": "team", "Feedback Dashboard": "team",  # NEW: Add Feedback Dashboard mapping
+        "User Management": "team", "Team Structure": "team", "1:1 Meetings": "team",
         "User Profile": "admin", "Project Data": "admin", "Import Users": "admin", "Import Reports": "admin", "System Settings": "admin"
     }
     
@@ -154,3 +149,4 @@ def set_page(page_name):
         st.session_state.nav_section = page_to_section_map[page_name]
             
     st.session_state.nav_page = page_name
+

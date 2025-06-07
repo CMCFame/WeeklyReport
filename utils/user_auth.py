@@ -50,7 +50,6 @@ AVAILABLE_FEATURES = {
     "User Management": "User Management (Admin Page)", # Admin specific
     "Team Structure": "Team Structure",
     "1:1 Meetings": "1:1 Meetings",
-    "Feedback Dashboard": "Manager Feedback Dashboard",  # NEW: Add this line
 
     # Administration Section (specific pages)
     "User Profile": "User Profile", # Users can always access their own profile
