@@ -72,6 +72,10 @@ from components.team_health_dashboard import render_team_health_dashboard
 from components.predictive_intelligence import render_predictive_intelligence
 from components.executive_summary_generator import render_executive_summary_generator
 
+# NEW MANAGER FEEDBACK IMPORTS
+from components.manager_feedback import render_feedback_dashboard
+from components.feedback_notifications import render_feedback_notifications
+
 # --- CALLBACK TO CLEAR FORM & RERUN ---
 def clear_form_callback():
     """Callback to reset all fields and rerun the app."""
@@ -156,7 +160,6 @@ def main():
         return
     
     # Display user info in sidebar
-    # Display user info in sidebar
     if st.session_state.get("user_info"):
         user_role = st.session_state.user_info.get("role", "team_member")
         user_name = st.session_state.user_info.get("full_name", "User")
@@ -166,6 +169,9 @@ def main():
         
         # Render navigation menu
         render_navigation()
+        
+        # NEW: Add feedback notifications for managers
+        render_feedback_notifications()
         
         # ADD THIS: Quick diagnostics for admin users
         if user_role == "admin":
@@ -217,14 +223,16 @@ def render_selected_page(page_name):
         render_advanced_analytics()
     elif page_name == "Batch Export":
         render_batch_export()
+    elif page_name == "Feedback Dashboard":
+        render_feedback_dashboard()
     
-    # AI Assistant section (NEW)
+    # AI Assistant section
     elif page_name == "AI Voice Assistant":
         render_ai_voice_assistant()
     elif page_name == "Smart Suggestions":
         render_suggestions_dashboard()
     
-    # AI Intelligence section (NEW - Managers/Admins only)
+    # AI Intelligence section (Managers/Admins only)
     elif page_name == "Team Health Dashboard":
         render_team_health_dashboard()
     elif page_name == "Predictive Intelligence":
@@ -249,6 +257,9 @@ def render_selected_page(page_name):
         render_team_structure()
     elif page_name == "1:1 Meetings":
         render_one_on_one_meetings()
+    elif page_name == "Feedback Dashboard":  # NEW: Add feedback dashboard route
+        from components.manager_feedback import render_feedback_dashboard
+        render_feedback_dashboard()
     
     # Administration section
     elif page_name == "User Profile":
@@ -261,7 +272,7 @@ def render_selected_page(page_name):
         render_report_import()
     elif page_name == "System Settings":
         render_system_settings()
-    elif page_name == "Data Diagnostics":  # Add this new page
+    elif page_name == "Data Diagnostics":
         from components.data_diagnostics import render_data_diagnostics
         render_data_diagnostics()    
     # Fallback
