@@ -156,6 +156,7 @@ def main():
         return
     
     # Display user info in sidebar
+    # Display user info in sidebar
     if st.session_state.get("user_info"):
         user_role = st.session_state.user_info.get("role", "team_member")
         user_name = st.session_state.user_info.get("full_name", "User")
@@ -165,6 +166,28 @@ def main():
         
         # Render navigation menu
         render_navigation()
+        
+        # ADD THIS: Quick diagnostics for admin users
+        if user_role == "admin":
+            st.sidebar.markdown("---")
+            st.sidebar.subheader("🔧 Quick Admin Tools")
+            
+            col1, col2 = st.sidebar.columns(2)
+            with col1:
+                if st.button("🔍 Diagnostics", key="quick_diagnostics"):
+                    st.session_state.nav_page = "Data Diagnostics"
+                    st.session_state.nav_section = "admin"
+                    st.rerun()
+            
+            with col2:
+                # Quick status indicator
+                from utils.file_ops import get_data_directory
+                import os
+                data_dir = get_data_directory()
+                if os.path.exists(data_dir) and os.access(data_dir, os.W_OK):
+                    st.success("💾 OK")
+                else:
+                    st.error("💾 Issue")
         
         # Get current page
         current_page = get_current_page()
@@ -238,7 +261,9 @@ def render_selected_page(page_name):
         render_report_import()
     elif page_name == "System Settings":
         render_system_settings()
-    
+    elif page_name == "Data Diagnostics":  # Add this new page
+        from components.data_diagnostics import render_data_diagnostics
+        render_data_diagnostics()    
     # Fallback
     else:
         st.error(f"Page '{page_name}' not found.")
@@ -420,7 +445,7 @@ def render_form_actions(is_editing=False):
                 save_current_report('submitted')
 
 def save_current_report(status, is_update=False):
-    """Save the current report.
+    """Save the current report with comprehensive error handling and user feedback.
 
     Args:
         status (str): Status of the report ('draft' or 'submitted')
@@ -428,40 +453,119 @@ def save_current_report(status, is_update=False):
     """
     # Validate required fields for submission
     if status == 'submitted' and not st.session_state.name:
-        st.error('Please enter your name before submitting')
+        st.error('❌ Please enter your name before submitting')
         return
 
     if status == 'submitted' and not st.session_state.reporting_week:
-        st.error('Please enter the reporting week before submitting')
+        st.error('❌ Please enter the reporting week before submitting')
         return
 
-    # Collect and save form data
-    report_data = collect_form_data()
-    report_data['status'] = status
-    
-    # If editing, preserve the original timestamp when it was created
-    if is_update and 'original_timestamp' in st.session_state:
-        report_data['timestamp'] = st.session_state.original_timestamp
-        # Add last_updated timestamp
-        from datetime import datetime
-        report_data['last_updated'] = datetime.now().isoformat()
-    
-    report_id = save_report(report_data)
-    st.session_state.report_id = report_id
-
-    # Show success message
-    if is_update:
-        st.success('Report updated successfully!')
-        # Clear editing flag
-        st.session_state.editing_report = False
-        # Go back to past reports
-        st.session_state.nav_page = "Past Reports"
-        st.session_state.nav_section = "reporting"
-        st.rerun()
-    elif status == 'draft':
-        st.success('Draft saved successfully!')
-    else:
-        st.success('Report submitted successfully!')
+    # Show saving indicator
+    with st.spinner('💾 Saving report...'):
+        try:
+            # Collect and validate form data
+            report_data = collect_form_data()
+            if not report_data:
+                st.error('❌ Failed to collect report data')
+                return
+            
+            report_data['status'] = status
+            
+            # If editing, preserve the original timestamp when it was created
+            if is_update and 'original_timestamp' in st.session_state:
+                report_data['timestamp'] = st.session_state.original_timestamp
+                # Add last_updated timestamp
+                from datetime import datetime
+                report_data['last_updated'] = datetime.now().isoformat()
+            
+            # Show what we're about to save
+            st.info(f"📝 Saving report for {report_data.get('name', 'Unknown')} - Week {report_data.get('reporting_week', 'Unknown')}")
+            
+            # Save the report
+            report_id = save_report(report_data)
+            
+            if report_id:
+                st.session_state.report_id = report_id
+                
+                # Show detailed success message
+                if is_update:
+                    st.success('✅ Report updated successfully!')
+                    st.info(f"📄 Report ID: {report_id}")
+                    # Clear editing flag
+                    st.session_state.editing_report = False
+                    # Go back to past reports
+                    st.session_state.nav_page = "Past Reports"
+                    st.session_state.nav_section = "reporting"
+                    st.rerun()
+                elif status == 'draft':
+                    st.success('📝 Draft saved successfully!')
+                    st.info(f"📄 Report ID: {report_id}")
+                    st.info("💡 You can continue editing and submit later")
+                else:
+                    st.success('🎉 Report submitted successfully!')
+                    st.info(f"📄 Report ID: {report_id}")
+                    st.balloons()  # Celebration effect for successful submission
+                
+                # Show save confirmation details
+                with st.expander("ℹ️ Save Details"):
+                    from utils.file_ops import get_data_directory
+                    import os
+                    
+                    data_dir = get_data_directory()
+                    file_path = os.path.join(data_dir, f"{report_id}.json")
+                    
+                    if os.path.exists(file_path):
+                        file_size = os.path.getsize(file_path)
+                        st.write(f"📁 **File Location:** `{file_path}`")
+                        st.write(f"📊 **File Size:** {file_size} bytes")
+                        st.write(f"⏰ **Saved At:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+                        
+                        # Verify we can read it back
+                        try:
+                            import json
+                            with open(file_path, 'r') as f:
+                                saved_data = json.load(f)
+                            st.success("✅ File verification: Report can be read back successfully")
+                        except Exception as e:
+                            st.error(f"⚠️ File verification failed: {e}")
+                    else:
+                        st.error("⚠️ Warning: File does not exist after save operation")
+                
+            else:
+                st.error('❌ Failed to save report!')
+                st.error('This could be due to:')
+                st.error('• File permission issues')
+                st.error('• Insufficient disk space')
+                st.error('• Data directory not accessible')
+                
+                # Offer diagnostics for admin users
+                if st.session_state.get("user_info", {}).get("role") == "admin":
+                    if st.button("🔍 Run Data Diagnostics"):
+                        st.session_state.nav_page = "Data Diagnostics"
+                        st.session_state.nav_section = "admin"
+                        st.rerun()
+                else:
+                    st.info("💡 Contact your administrator if this problem persists")
+                
+        except Exception as e:
+            st.error(f'❌ Unexpected error while saving: {str(e)}')
+            
+            # Show debugging information for admins
+            if st.session_state.get("user_info", {}).get("role") == "admin":
+                with st.expander("🔍 Debug Information"):
+                    import traceback
+                    st.text("Error Details:")
+                    st.text(traceback.format_exc())
+                    
+                    st.text("Session State Keys:")
+                    st.text(str(list(st.session_state.keys())))
+                    
+                    try:
+                        report_data = collect_form_data()
+                        st.text("Report Data Structure:")
+                        st.json(report_data)
+                    except Exception as debug_e:
+                        st.text(f"Could not collect report data: {debug_e}")
 
 # Run the app
 if __name__ == '__main__':
