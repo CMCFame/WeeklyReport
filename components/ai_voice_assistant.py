@@ -19,12 +19,24 @@ from datetime import datetime
 import json
 import time
 
+# --- Helper function to add log messages ---
+def add_log_message(message, level="info"):
+    """Adds a message to the session's log."""
+    if 'log_messages' not in st.session_state:
+        st.session_state.log_messages = []
+    
+    timestamp = datetime.now().strftime("%H:%M:%S")
+    # Prepend new messages to the list
+    st.session_state.log_messages.insert(0, f'<div class="log-entry"><span class="log-timestamp">[{timestamp}]</span> <span class="log-{level}">{message}</span></div>')
+    # Keep the log from getting too long
+    st.session_state.log_messages = st.session_state.log_messages[:50]
+
 def render_ai_voice_assistant():
     """Render the AI Voice Assistant for creating reports via speech."""
     st.title("🎤 AI Voice Assistant")
     st.write("Create your weekly report by speaking naturally - AI will structure your update automatically")
 
-    # --- START: Add this code for the status log ---
+    # --- START: Log Display Setup ---
     st.subheader("Diagnostic Log")
     st.markdown("""
     <style>
@@ -38,37 +50,27 @@ def render_ai_voice_assistant():
             font-family: 'Courier New', Courier, monospace;
             font-size: 0.9em;
         }
-        .log-entry {
-            margin-bottom: 5px;
-        }
-        .log-timestamp {
-            color: #A9A9A9;
-        }
-        .log-success {
-            color: #28a745; /* Green */
-        }
-        .log-error {
-            color: #dc3545; /* Red */
-        }
-        .log-info {
-            color: #17a2b8; /* Blue */
-        }
+        .log-entry { margin-bottom: 5px; }
+        .log-timestamp { color: #A9A9A9; }
+        .log-success { color: #28a745; }
+        .log-error { color: #dc3545; }
+        .log-info { color: #17a2b8; }
     </style>
     """, unsafe_allow_html=True)
 
-    if 'log_messages' not in st.session_state:
-        st.session_state.log_messages = []
-
-    def add_log_message(message, level="info"):
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        # Prepend new messages to the list
-        st.session_state.log_messages.insert(0, f'<div class="log-entry"><span class="log-timestamp">[{timestamp}]</span> <span class="log-{level}">{message}</span></div>')
-        # Keep the log from getting too long
-        st.session_state.log_messages = st.session_state.log_messages[:50]
-
-    # Placeholder for the log display
     log_placeholder = st.empty()
-    # --- END: Add this code for the status log ---
+    # --- END: Log Display Setup ---
+    
+    # --- START: State Initialization and Logging Fix ---
+    # This flag ensures initialization only happens once per session/page visit.
+    if 'voice_assistant_initialized' not in st.session_state:
+        st.session_state.voice_assistant_initialized = False
+        st.session_state.log_messages = [] # Clear logs on first load
+    
+    if not st.session_state.voice_assistant_initialized:
+        add_log_message("Voice assistant initialized. Waiting for user action.")
+        st.session_state.voice_assistant_initialized = True # Set flag to true
+    # --- END: State Initialization and Logging Fix ---
 
     # Check if OpenAI API is configured
     if not setup_openai_api():
@@ -76,8 +78,8 @@ def render_ai_voice_assistant():
         log_placeholder.markdown(f'<div class="log-container">{"".join(st.session_state.log_messages)}</div>', unsafe_allow_html=True)
         st.info("👆 Please configure your OpenAI API key above to use the Voice Assistant.")
         return
-
-    # Initialize session state
+    
+    # Initialize session state for the report form itself
     init_session_state()
 
     # Initialize processing state variables if they don't exist
@@ -98,41 +100,35 @@ def render_ai_voice_assistant():
         clear_voice_session_data()
         st.session_state.log_messages = []
         add_log_message("Session cleared. Ready to start over.")
+        st.session_state.voice_assistant_initialized = False # Allow re-initialization
         st.rerun()
 
     # Voice recording section
-    add_log_message("Voice assistant initialized. Waiting for user to record.")
     render_voice_recording_section()
-
-    # This block runs on every rerun. If processing is active, it initiates the pipeline.
+    
+    # This block runs on every rerun if processing is active
     if st.session_state.is_processing_audio and not st.session_state.get('processing_started_this_run', False):
-        add_log_message("Starting audio processing pipeline...", "info")
         st.session_state.processing_started_this_run = True
         with st.spinner(st.session_state.get('processing_status', "Processing...")):
-            # Call the actual processing function
             _run_audio_processing_pipeline(
                 st.session_state.audio_bytes_to_process,
-                st.session_state.transcription_source,
-                add_log_message  # Pass the logging function
+                st.session_state.transcription_source
             )
 
-    # Processing and review section
+    # Processing and review sections
     if st.session_state.get('voice_transcription') or st.session_state.get('structured_voice_data'):
-        add_log_message("Displaying transcription/structured data for review.", "info")
         render_transcription_review()
-
+    
     if st.session_state.get('structured_voice_data'):
         render_structured_data_review()
 
     # Display the log at the end of the render function
     log_placeholder.markdown(f'<div class="log-container">{"".join(st.session_state.log_messages)}</div>', unsafe_allow_html=True)
 
-
-def _run_audio_processing_pipeline(input_data, transcription_source, add_log_message):
+def _run_audio_processing_pipeline(input_data, transcription_source):
     """
     Internal function to handle the long-running audio processing pipeline.
     Updates session state with progress and status.
-    This function is called on a subsequent rerun after a trigger.
     """
     if transcription_source == "audio":
         st.session_state.voice_session_stats['recordings_made'] += 1
@@ -185,12 +181,10 @@ def _run_audio_processing_pipeline(input_data, transcription_source, add_log_mes
         st.session_state.audio_recorded_but_not_processed = False
         st.rerun()
 
-
 def render_voice_recording_section():
     """Render the voice recording interface."""
     st.subheader("🎙️ Voice Recording")
     
-    # Instructions
     with st.expander("📋 Recording Tips & Guidelines", expanded=False):
         st.markdown("""
         ### What to Include in Your Update:
@@ -228,22 +222,19 @@ def render_voice_recording_section():
         st.write("### Start Recording Your Update")
         st.info("💡 **Optimal length:** 3-5 minutes for a complete update")
         
-        # Placeholder for dynamic recording/processing status message
         status_message_placeholder = st.empty()
         
-        # Display current status based on session state flags
         if st.session_state.is_processing_audio:
             status_message_placeholder.info(st.session_state.get('processing_status', "Processing..."))
         elif st.session_state.audio_recorded_but_not_processed:
             status_message_placeholder.success("🎵 Recording captured! Click 'Process Recording' below to continue.")
         elif st.session_state.get('processing_status') == "Processing complete.":
             status_message_placeholder.success("✅ Processing complete! Review your structured report below.")
-        elif st.session_state.get('processing_status') and "failed" in st.session_state.get('processing_status').lower():
+        elif st.session_state.get('processing_status') and "failed" in st.session_state.get('processing_status', '').lower():
             status_message_placeholder.error(st.session_state.get('processing_status'))
         else:
             status_message_placeholder.info("Click the microphone to start recording. Pause for 3 seconds to stop.")
         
-        # Audio recorder component
         audio_bytes = audio_recorder(
             text="Click to start recording (button color changes when recording)",
             recording_color="#e74c3c",
@@ -256,6 +247,7 @@ def render_voice_recording_section():
         
         if audio_bytes and not st.session_state.is_processing_audio and not st.session_state.get('audio_bytes_to_process_already_set', False):
             st.audio(audio_bytes, format="audio/wav")
+            add_log_message("Audio recording detected.", "info")
             st.session_state.audio_recorded_but_not_processed = True
             st.session_state.audio_bytes_to_process = audio_bytes
             st.session_state.transcription_source = "audio"
@@ -266,11 +258,7 @@ def render_voice_recording_section():
         st.write("### Quick Stats")
         
         if 'voice_session_stats' not in st.session_state:
-            st.session_state.voice_session_stats = {
-                'recordings_made': 0,
-                'transcriptions_processed': 0,
-                'reports_created': 0
-            }
+            st.session_state.voice_session_stats = {'recordings_made': 0, 'transcriptions_processed': 0, 'reports_created': 0}
         
         stats = st.session_state.voice_session_stats
         st.metric("Recordings Made", stats['recordings_made'])
@@ -292,19 +280,18 @@ def render_voice_recording_section():
 
     if st.session_state.get('audio_bytes_to_process') and not st.session_state.is_processing_audio:
         col_process1, col_process2 = st.columns(2)
-        
         with col_process1:
             if st.button("🔄 Record Again", use_container_width=True, key="record_again_btn"):
+                add_log_message("User chose to record again. Clearing previous audio.", "info")
                 clear_voice_session_data()
                 st.rerun()
-            
         with col_process2:
             if st.button("🚀 Process Recording", type="primary", use_container_width=True, key="process_recording_btn"):
+                add_log_message("User initiated processing.", "info")
                 st.session_state.is_processing_audio = True
                 st.session_state.processing_status = "Initiating processing..."
                 st.session_state.audio_recorded_but_not_processed = False
                 st.rerun()
-
 
 def render_transcription_review():
     """Render the transcription review section."""
@@ -328,6 +315,7 @@ def render_transcription_review():
             if 'structured_voice_data' in st.session_state:
                 del st.session_state.structured_voice_data
             st.session_state.processing_status = "Transcription edited. Click 'Re-process' to update structured data."
+            add_log_message("Transcription edited by user.", "info")
             st.info("Transcription edited. Click 'Re-process' to update structured data.")
             st.rerun() 
     
@@ -376,12 +364,12 @@ def render_transcription_review():
                                 not st.session_state.is_processing_audio
         
         if st.button("🔄 Re-process", use_container_width=True, disabled=not is_reprocess_enabled, key="reprocess_transcription_btn"):
+            add_log_message("User initiated re-processing from edited text.", "info")
             st.session_state.is_processing_audio = True
             st.session_state.processing_status = "Initiating re-processing from edited text..."
             st.session_state.audio_bytes_to_process = st.session_state.voice_transcription
             st.session_state.transcription_source = "text"
             st.rerun()
-
 
 def render_structured_data_review():
     """Render the structured data review and form population."""
@@ -579,19 +567,17 @@ def create_report_from_voice_data(structured_data):
 def clear_voice_session_data():
     """Clear all voice-related session data."""
     keys_to_clear = [
-        'voice_transcription',
-        'structured_voice_data',
-        'processing_status',
-        'audio_bytes_to_process',
-        'transcription_source',
-        'processing_started_this_run',
-        'audio_recorded_but_not_processed',
-        'audio_bytes_to_process_already_set'
+        'voice_transcription', 'structured_voice_data', 'processing_status',
+        'audio_bytes_to_process', 'transcription_source', 'processing_started_this_run',
+        'audio_recorded_but_not_processed', 'audio_bytes_to_process_already_set'
     ]
-    
     for key in keys_to_clear:
         if key in st.session_state:
             del st.session_state[key]
+    
+    # This flag should also be reset to allow the "initialized" message on the next visit
+    if 'voice_assistant_initialized' in st.session_state:
+        del st.session_state['voice_assistant_initialized']
 
 def render_voice_assistant_tips():
     """Render tips for using the voice assistant effectively."""
